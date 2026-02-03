@@ -5,8 +5,8 @@ from pathlib import Path
 import typer
 from loguru import logger
 
-from src.jppt.utils.config import load_config
-from src.jppt.utils.logger import setup_logger
+from jppt.utils.config import load_config
+from jppt.utils.logger import setup_logger
 
 app = typer.Typer(
     name="jppt",
@@ -70,7 +70,7 @@ def start(
     logger.info(f"Debug mode: {settings.app.debug}")
 
     # Run app
-    from src.jppt.utils.app_runner import run_app
+    from jppt.utils.app_runner import run_app
 
     asyncio.run(run_app(settings))
 
@@ -107,7 +107,7 @@ def batch(
     logger.info(f"Environment: {env}")
 
     # Run batch
-    from src.jppt.utils.batch_runner import run_batch
+    from jppt.utils.batch_runner import run_batch
 
     asyncio.run(run_batch(settings))
 

@@ -1,7 +1,6 @@
 """Test CLI entry point."""
+from jppt.main import app
 from typer.testing import CliRunner
-
-from src.jppt.main import app
 
 runner = CliRunner()
 

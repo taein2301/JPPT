@@ -1,0 +1,6 @@
+# Merge strategy for app-specific files
+src/core/** merge=ours
+src/utils/app_runner.py merge=ours
+src/utils/batch_runner.py merge=ours
+config/*.yaml merge=ours
+README.md merge=ours

@@ -2,9 +2,6 @@
 
 from loguru import logger
 from telegram import Bot
-from telegram.error import TelegramError
-
-from src.jppt.utils.exceptions import TelegramError as TelegramException
 
 
 class TelegramNotifier:
@@ -73,7 +70,7 @@ class TelegramNotifier:
             error: Exception that occurred
             context: Additional context about the error
         """
-        message = f"🚨 **Error Alert**\n\n"
+        message = "🚨 **Error Alert**\n\n"
         if context:
             message += f"**Context:** {context}\n\n"
         message += f"**Error:** `{type(error).__name__}`\n"

@@ -3,8 +3,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
-from src.jppt.utils.config import Settings
+from jppt.utils.config import Settings
 
 
 @pytest.fixture
@@ -52,7 +51,8 @@ def temp_config_dir(tmp_path: Path) -> Path:
     config_dir.mkdir()
 
     default_file = config_dir / "default.yaml"
-    default_file.write_text("""
+    default_file.write_text(
+        """
 app:
   name: "test"
   version: "0.1.0"
@@ -68,6 +68,7 @@ telegram:
   enabled: false
   bot_token: ""
   chat_id: ""
-""")
+"""
+    )
 
     return config_dir

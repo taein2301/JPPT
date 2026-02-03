@@ -58,7 +58,7 @@ def load_config(env: str = "dev", config_dir: Path | None = None) -> Settings:
     Raises:
         ConfigurationError: If configuration files are missing or invalid
     """
-    from src.jppt.utils.exceptions import ConfigurationError
+    from jppt.utils.exceptions import ConfigurationError
 
     if config_dir is None:
         config_dir = Path(__file__).parent.parent.parent.parent / "config"

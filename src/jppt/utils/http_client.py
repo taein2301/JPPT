@@ -5,7 +5,7 @@ from typing import Any
 import httpx
 from loguru import logger
 
-from src.jppt.utils.exceptions import HttpClientError
+from jppt.utils.exceptions import HttpClientError
 
 
 class HttpClient:

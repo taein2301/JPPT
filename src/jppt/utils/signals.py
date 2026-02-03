@@ -1,6 +1,5 @@
 """Graceful shutdown handling for signals."""
 
-import asyncio
 import signal
 from collections.abc import Awaitable, Callable
 from typing import Any

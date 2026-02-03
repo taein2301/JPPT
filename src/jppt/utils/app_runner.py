@@ -4,8 +4,8 @@ import asyncio
 
 from loguru import logger
 
-from src.jppt.utils.config import Settings
-from src.jppt.utils.signals import GracefulShutdown, setup_signal_handlers
+from jppt.utils.config import Settings
+from jppt.utils.signals import GracefulShutdown, setup_signal_handlers
 
 
 async def run_app(settings: Settings) -> None:

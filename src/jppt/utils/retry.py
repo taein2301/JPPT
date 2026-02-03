@@ -12,7 +12,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from src.jppt.utils.exceptions import RetryExhaustedError
+from jppt.utils.exceptions import RetryExhaustedError
 
 T = TypeVar("T")
 

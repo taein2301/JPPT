@@ -5,9 +5,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
-from src.jppt.utils.config import Settings, load_config
-from src.jppt.utils.exceptions import ConfigurationError
+from jppt.utils.config import Settings, load_config
+from jppt.utils.exceptions import ConfigurationError
 
 
 def test_load_config_default() -> None:
@@ -28,7 +27,8 @@ def test_load_config_with_env_override(tmp_path: Path) -> None:
     """Test loading config with environment-specific overrides."""
     # Create test config files
     default_file = tmp_path / "default.yaml"
-    default_file.write_text("""
+    default_file.write_text(
+        """
 app:
   name: "test"
   debug: false
@@ -36,15 +36,18 @@ logging:
   level: "INFO"
 telegram:
   enabled: false
-""")
+"""
+    )
 
     dev_file = tmp_path / "dev.yaml"
-    dev_file.write_text("""
+    dev_file.write_text(
+        """
 app:
   debug: true
 logging:
   level: "DEBUG"
-""")
+"""
+    )
 
     config = load_config(env="dev", config_dir=tmp_path)
     assert config.app.debug is True
@@ -61,14 +64,16 @@ def test_load_config_missing_default(tmp_path: Path) -> None:
 def test_load_config_with_env_variables(tmp_path: Path) -> None:
     """Test loading config with environment variables override."""
     default_file = tmp_path / "default.yaml"
-    default_file.write_text("""
+    default_file.write_text(
+        """
 app:
   name: "test"
 telegram:
   enabled: false
   bot_token: ""
   chat_id: ""
-""")
+"""
+    )
 
     with patch.dict(
         os.environ,

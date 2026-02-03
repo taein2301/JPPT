@@ -2,7 +2,7 @@
 
 from loguru import logger
 
-from src.jppt.utils.config import Settings
+from jppt.utils.config import Settings
 
 
 async def run_batch(settings: Settings) -> None:

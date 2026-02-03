@@ -1,7 +1,6 @@
 import pytest
-
-from src.jppt.utils.batch_runner import run_batch
-from src.jppt.utils.config import Settings
+from jppt.utils.batch_runner import run_batch
+from jppt.utils.config import Settings
 
 
 @pytest.mark.asyncio

@@ -10,8 +10,7 @@ def setup_logger(
     level: str = "INFO",
     log_file: Path | None = None,
     format_str: str = (
-        "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | "
-        "{name}:{function}:{line} | {message}"
+        "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | " "{name}:{function}:{line} | {message}"
     ),
     rotation: str = "00:00",
     retention: str = "10 days",

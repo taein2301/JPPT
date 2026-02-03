@@ -1,10 +1,8 @@
-import asyncio
 import signal
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
-
-from src.jppt.utils.signals import GracefulShutdown, setup_signal_handlers
+from jppt.utils.signals import GracefulShutdown, setup_signal_handlers
 
 
 @pytest.mark.asyncio

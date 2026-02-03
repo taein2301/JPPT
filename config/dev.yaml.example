@@ -1,0 +1,8 @@
+app:
+  debug: true
+
+logging:
+  level: "DEBUG"
+
+telegram:
+  enabled: false

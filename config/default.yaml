@@ -1,0 +1,15 @@
+app:
+  name: "jppt"
+  version: "0.1.0"
+  debug: false
+
+logging:
+  level: "INFO"
+  format: "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}"
+  rotation: "00:00"
+  retention: "10 days"
+
+telegram:
+  enabled: false
+  bot_token: ""
+  chat_id: ""

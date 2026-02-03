@@ -5,8 +5,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from jppt.utils.config import Settings, load_config
-from jppt.utils.exceptions import ConfigurationError
+from src.utils.config import Settings, load_config
+from src.utils.exceptions import ConfigurationError
 
 
 def test_load_config_default() -> None:

@@ -1,9 +1,10 @@
 """Pytest configuration and shared fixtures."""
+
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from jppt.utils.config import Settings
+from src.utils.config import Settings
 
 
 @pytest.fixture

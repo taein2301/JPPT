@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from jppt.utils.logger import setup_logger
 from loguru import logger
+from src.utils.logger import setup_logger
 
 
 def test_setup_logger_console_only(tmp_path: Path) -> None:

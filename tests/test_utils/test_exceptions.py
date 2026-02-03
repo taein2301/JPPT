@@ -1,4 +1,4 @@
-from jppt.utils.exceptions import (
+from src.utils.exceptions import (
     AppException,
     ConfigurationError,
     HttpClientError,

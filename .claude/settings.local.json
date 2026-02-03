@@ -4,7 +4,15 @@
       "Bash(git commit:*)",
       "Bash(test:*)",
       "Bash(cd:*)",
-      "Bash(python3 -m pytest:*)"
+      "Bash(python3 -m pytest:*)",
+      "Bash(xargs sed:*)",
+      "Bash(tree:*)",
+      "Bash(PYTHONPATH=src uv run python:*)",
+      "mcp__filesystem__directory_tree",
+      "Bash(chmod:*)",
+      "Bash(./scripts/create_app.sh:*)",
+      "Bash(./scripts/run.sh:*)",
+      "mcp__sequential-thinking__sequentialthinking"
     ]
   },
   "outputStyle": "Learning"

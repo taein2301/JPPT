@@ -15,16 +15,41 @@ Modern Python CLI application template with best practices built-in.
 
 ## Quick Start
 
+### 1. Initial Setup
+
 ```bash
-# Install dependencies
-uv sync --all-extras
+# One-command setup (recommended)
+./scripts/create_app.sh
 
-# Run in app mode (daemon)
-uv run python -m src.main start
+# Or setup with options
+./scripts/create_app.sh --skip-tests  # Skip initial tests
+./scripts/create_app.sh --no-hooks    # Skip pre-commit hooks
+```
 
-# Run in batch mode (one-shot)
-uv run python -m src.main batch
+This will:
+- ✅ Verify Python 3.11+ and uv installation
+- ✅ Install all dependencies
+- ✅ Create configuration files
+- ✅ Set up logging directories
+- ✅ Install pre-commit hooks
+- ✅ Run initial tests (optional)
 
+### 2. Run the Application
+
+```bash
+# Quick run scripts (recommended)
+./scripts/run.sh              # Start mode, dev environment
+./scripts/run.sh batch        # Batch mode, dev environment
+./scripts/run.sh start prod   # Start mode, prod environment
+
+# Or use uv directly
+uv run python -m src.main start --env dev
+uv run python -m src.main batch --env dev
+```
+
+### 3. Development Commands
+
+```bash
 # Run tests
 uv run pytest
 
@@ -33,6 +58,9 @@ uv run ruff format .
 
 # Type check
 uv run mypy src/
+
+# Run all pre-commit checks
+uv run pre-commit run --all-files
 ```
 
 ## Project Structure
@@ -48,6 +76,10 @@ src/
     ├── batch_runner.py
     └── ...
 
+scripts/                 # Automation scripts
+├── create_app.sh        # Initial setup script
+└── run.sh               # Quick run wrapper
+
 tests/                   # Test suite
 config/                  # Configuration files
 docs/                    # Documentation
@@ -55,7 +87,9 @@ docs/                    # Documentation
 
 ## Configuration
 
-1. Copy example config:
+Configuration is automatically set up by `./scripts/create_app.sh`, but you can also:
+
+1. Manually copy example config:
    ```bash
    cp config/dev.yaml.example config/dev.yaml
    ```
@@ -68,10 +102,60 @@ docs/                    # Documentation
    export TELEGRAM_CHAT_ID="your-chat-id"
    ```
 
-## Development
+4. For production, create `config/prod.yaml`:
+   ```bash
+   cp config/dev.yaml.example config/prod.yaml
+   # Edit prod.yaml with production settings
+   ```
+
+## Scripts
+
+### `scripts/create_app.sh`
+
+Initial setup script - run this once after cloning the template.
 
 ```bash
-# Install pre-commit hooks
+./scripts/create_app.sh           # Full setup
+./scripts/create_app.sh --help    # Show options
+```
+
+**Features:**
+- Validates Python 3.11+ and uv installation
+- Installs all dependencies with `uv sync --all-extras`
+- Creates `config/dev.yaml` from example
+- Sets up `logs/` directory
+- Installs pre-commit hooks
+- Runs initial tests (optional)
+
+### `scripts/run.sh`
+
+Quick run wrapper - simplified app execution.
+
+```bash
+./scripts/run.sh [MODE] [ENV]
+./scripts/run.sh --help           # Show usage
+```
+
+**Examples:**
+```bash
+./scripts/run.sh                  # start mode, dev env
+./scripts/run.sh batch            # batch mode, dev env
+./scripts/run.sh start prod       # start mode, prod env
+./scripts/run.sh batch prod       # batch mode, prod env
+```
+
+**Features:**
+- Validates uv and config file existence
+- Clear execution info output
+- Auto-creates logs directory
+- Proper error messages and exit codes
+
+## Development
+
+Pre-commit hooks are automatically installed by `./scripts/create_app.sh`.
+
+```bash
+# Manually install hooks
 uv run pre-commit install
 
 # Run all checks

@@ -1,6 +1,6 @@
 import pytest
-from jppt.utils.exceptions import HttpClientError
-from jppt.utils.http_client import HttpClient
+from src.utils.exceptions import HttpClientError
+from src.utils.http_client import HttpClient
 
 
 @pytest.mark.asyncio

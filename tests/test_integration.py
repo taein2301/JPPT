@@ -1,8 +1,9 @@
 """Integration tests for the full application."""
+
 from pathlib import Path
 
 import pytest
-from jppt.main import app
+from main import app
 from typer.testing import CliRunner
 
 runner = CliRunner()
@@ -28,8 +29,8 @@ def test_full_cli_integration(temp_config_dir: Path, monkeypatch: pytest.MonkeyP
 @pytest.mark.asyncio
 async def test_config_logger_integration(temp_config_dir: Path) -> None:
     """Test config and logger working together."""
-    from jppt.utils.config import load_config
-    from jppt.utils.logger import setup_logger
+    from src.utils.config import load_config
+    from src.utils.logger import setup_logger
 
     config = load_config(env="dev", config_dir=temp_config_dir)
 

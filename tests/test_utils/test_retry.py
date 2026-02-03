@@ -1,6 +1,6 @@
 import pytest
-from jppt.utils.exceptions import RetryExhaustedError
-from jppt.utils.retry import with_retry
+from src.utils.exceptions import RetryExhaustedError
+from src.utils.retry import with_retry
 
 
 def test_retry_succeeds_on_first_attempt() -> None:

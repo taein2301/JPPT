@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit:*)",
+      "Bash(test:*)",
+      "Bash(cd:*)",
+      "Bash(python3 -m pytest:*)"
+    ]
+  },
+  "outputStyle": "Learning"
+}

@@ -41,13 +41,13 @@ python-app-template/
 │   ├── __init__.py
 │   ├── main.py              # CLI 진입점 (Typer)
 │   ├── core/                # 핵심 비즈니스 로직
-│   │   ├── __init__.py
-│   │   ├── app.py           # App 모드 (상주 실행)
-│   │   └── batch.py         # Batch 모드 (일회성 실행)
+│   │   └── __init__.py
 │   └── utils/               # 공통 유틸리티
 │       ├── __init__.py
 │       ├── config.py        # 설정 관리 (Pydantic)
 │       ├── logger.py        # 로깅 설정 (Loguru)
+│       ├── app_runner.py    # App 모드 실행 (상주)
+│       ├── batch_runner.py  # Batch 모드 실행 (일회성)
 │       ├── exceptions.py    # 커스텀 예외
 │       ├── retry.py         # 재시도 데코레이터
 │       ├── signals.py       # Graceful Shutdown
@@ -62,6 +62,8 @@ python-app-template/
 │   └── test_utils/
 │       └── __init__.py
 ├── config/                  # 설정 파일
+│   ├── default.yaml         # 기본값 + 스키마 (커밋)
+│   ├── dev.yaml.example     # 개발 환경 예시 (커밋)
 │   ├── dev.yaml             # 개발 환경 설정 (gitignore)
 │   └── prod.yaml            # 운영 환경 설정 (gitignore)
 ├── logs/                    # 로그 파일 (gitignore)
@@ -110,25 +112,16 @@ python -m src.main --version
 ### 4.2 설정 관리 (Pydantic Settings)
 
 #### 4.2.1 설정 파일 구조
+```
+config/
+├── default.yaml             # 기본값 + 스키마 (커밋)
+├── dev.yaml.example         # 개발 환경 예시 (커밋)
+├── dev.yaml                 # 개발 환경 실제 사용 (gitignore)
+└── prod.yaml                # 운영 환경 실제 사용 (gitignore)
+```
+
 ```yaml
-# config/dev.yaml
-app:
-  name: "my-app"
-  version: "0.1.0"
-  debug: true
-
-logging:
-  level: "INFO"
-  format: "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}"
-
-telegram:
-  enabled: false
-
-supabase:
-  url: ""
-  key: ""
-
-# config/prod.yaml
+# config/default.yaml (기본값, 커밋)
 app:
   name: "my-app"
   version: "0.1.0"
@@ -137,15 +130,42 @@ app:
 logging:
   level: "INFO"
   format: "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}"
+  rotation: "00:00"
+  retention: "10 days"
 
 telegram:
-  enabled: true
+  enabled: false
   bot_token: ""
   chat_id: ""
 
-supabase:
-  url: ""
-  key: ""
+# config/dev.yaml.example (개발 예시, 커밋)
+app:
+  debug: true
+
+telegram:
+  enabled: false
+
+# config/dev.yaml (실제 사용, gitignore)
+app:
+  debug: true
+
+logging:
+  level: "DEBUG"
+
+telegram:
+  enabled: false
+
+# config/prod.yaml (실제 사용, gitignore)
+app:
+  debug: false
+
+logging:
+  level: "INFO"
+
+telegram:
+  enabled: true
+  bot_token: "${TELEGRAM_BOT_TOKEN}"
+  chat_id: "${TELEGRAM_CHAT_ID}"
 ```
 
 #### 4.2.2 설정 클래스
@@ -181,7 +201,7 @@ AppException (Base)
 ├── ConfigurationError      # 설정 관련 오류
 ├── ServiceError           # 외부 서비스 오류
 │   ├── TelegramError
-│   └── SupabaseError
+│   └── HttpClientError
 ├── ValidationError        # 데이터 검증 오류
 └── RetryExhaustedError    # 재시도 소진
 ```
@@ -241,10 +261,23 @@ target-version = "py311"
 select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
 ```
 
-#### 4.7.2 Pre-commit Hooks
+#### 4.7.2 Mypy 설정
+```toml
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_unimported = true
+no_implicit_optional = true
+show_error_codes = true
+```
+
+#### 4.7.3 Pre-commit Hooks
 1. ruff (lint + format)
 2. mypy (type check)
-3. pytest (unit tests)
+3. pytest (빠른 단위 테스트만, 통합 테스트는 CI)
 
 ---
 
@@ -255,9 +288,27 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
 - `tests/test_utils/`: 유틸리티 테스트
 - `tests/test_core/`: 비즈니스 로직 테스트
 
-#### 4.8.2 Fixtures
+#### 4.8.2 Pytest 설정
+```toml
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-fail-under=80",
+    "--strict-markers",
+    "-v"
+]
+```
+
+#### 4.8.3 Fixtures
 - `config`: 테스트용 설정 객체
 - `mock_telegram`: Telegram 모킹
+- `mock_http_client`: HTTP 클라이언트 모킹
 
 ---
 
@@ -274,6 +325,8 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
 ```gitattributes
 # 앱별로 다른 파일은 ours 전략
 src/core/** merge=ours
+src/utils/app_runner.py merge=ours
+src/utils/batch_runner.py merge=ours
 config/*.yaml merge=ours
 README.md merge=ours
 ```
@@ -305,9 +358,11 @@ git merge upstream/main --allow-unrelated-histories
 ---
 
 ## 7. 제외 항목 (향후 추가 가능)
-- [ ] DB 연동  
+- [ ] Supabase 연동
+- [ ] Docker 배포
 - [ ] 스케줄러 (APScheduler)
 - [ ] 모니터링/메트릭
+- [ ] 웹 대시보드 (Streamlit)
 
 ---
 

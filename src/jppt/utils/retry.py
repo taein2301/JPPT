@@ -40,6 +40,7 @@ def with_retry(
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
+            result: T | None = None
             try:
                 for attempt in Retrying(
                     stop=stop_after_attempt(max_attempts),
@@ -49,7 +50,8 @@ def with_retry(
                     ),
                 ):
                     with attempt:
-                        return func(*args, **kwargs)
+                        result = func(*args, **kwargs)
+                        return result
             except RetryError as e:
                 # Extract the original exception from RetryError
                 original_error = e.last_attempt.exception()
@@ -66,6 +68,8 @@ def with_retry(
                     f"Retry exhausted for {func.__name__} after {max_attempts} attempts: {e}"
                 )
                 raise RetryExhaustedError(f"Failed after {max_attempts} attempts: {e}") from e
+            # This should never be reached, but makes mypy happy
+            raise RetryExhaustedError(f"Unexpected end of retry logic for {func.__name__}")
 
         return wrapper
 

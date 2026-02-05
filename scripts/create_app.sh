@@ -235,7 +235,7 @@ substitute_project_name() {
 
     # 1. Update config/default.yaml
     if [ -f "config/default.yaml" ]; then
-        sed -i.bak "s/name: \"my-app\"/name: \"$app_name\"/" config/default.yaml
+        sed -i.bak "s/name: \".*\"/name: \"$app_name\"/" config/default.yaml
         rm -f config/default.yaml.bak
         print_success "Updated config/default.yaml"
     fi
@@ -549,6 +549,13 @@ main() {
     echo "     ${BLUE}./scripts/run.sh${RESET}              # Start mode (dev)"
     echo "     ${BLUE}./scripts/run.sh batch${RESET}        # Batch mode (dev)"
     echo ""
+    echo ""
+    echo "${BOLD}${GREEN}Opening new shell in project directory...${RESET}"
+    echo ""
+
+    # Change to target directory and start new shell
+    cd "$TARGET_DIR" || exit 1
+    exec "${SHELL:-/bin/bash}"
 }
 
 # Run main function

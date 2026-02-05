@@ -285,7 +285,7 @@ function Update-ProjectName {
 
         # 1. Update config/default.yaml
         if (Test-Path "config/default.yaml") {
-            (Get-Content "config/default.yaml") -replace 'name: "my-app"', "name: `"$AppName`"" | Set-Content "config/default.yaml"
+            (Get-Content "config/default.yaml") -replace 'name: ".*"', "name: `"$AppName`"" | Set-Content "config/default.yaml"
             Print-Success "Updated config/default.yaml"
         }
 

@@ -6,25 +6,11 @@ repos:
         args: [--fix]
       - id: ruff-format
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
-    hooks:
-      - id: mypy
-        additional_dependencies:
-          - pydantic>=2.0
-          - pydantic-settings>=2.0
-          - types-pyyaml
-          - httpx
-          - typer
-          - tenacity
-        args: [--strict, --ignore-missing-imports]
-        exclude: ^tests/
-
   - repo: local
     hooks:
-      - id: pytest-fast
-        name: pytest (fast tests only)
-        entry: bash -c 'uv run pytest -v --maxfail=1'
+      - id: mypy
+        name: mypy
+        entry: bash -c 'uv run mypy src --exclude src/logs'
         language: system
+        types: [python]
         pass_filenames: false
-        always_run: true

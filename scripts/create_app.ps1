@@ -45,7 +45,7 @@ function Print-Info {
 # ============================================================================
 
 function Check-Python {
-    Print-Step -Current 1 -Total 6 -Message "Checking Python version..."
+    Print-Step -Current 1 -Total 7 -Message "Checking Python version..."
 
     $python = Get-Command python -ErrorAction SilentlyContinue
     if (-not $python) {
@@ -82,7 +82,7 @@ function Check-Python {
 }
 
 function Check-Uv {
-    Print-Step -Current 2 -Total 6 -Message "Checking uv installation..."
+    Print-Step -Current 2 -Total 7 -Message "Checking uv installation..."
 
     $uv = Get-Command uv -ErrorAction SilentlyContinue
     if (-not $uv) {
@@ -495,9 +495,12 @@ function Run-TestsOptional {
 
 function Print-Usage {
     Write-Host @"
-Usage: .\scripts\create_app.ps1 [OPTIONS]
+Usage: .\scripts\create_app.ps1 <app-name> [OPTIONS]
 
-Set up JPPT development environment in one command.
+Create a new project from JPPT template.
+
+ARGUMENTS:
+    <app-name>      Name of the new project (lowercase, numbers, -, _ only)
 
 OPTIONS:
     -SkipTests      Skip running initial tests
@@ -505,15 +508,22 @@ OPTIONS:
     -Help           Show this help message
 
 EXAMPLES:
-    .\scripts\create_app.ps1              # Full setup
-    .\scripts\create_app.ps1 -SkipTests   # Setup without tests
-    .\scripts\create_app.ps1 -NoHooks     # Setup without hooks
+    .\scripts\create_app.ps1 my-awesome-app
+    .\scripts\create_app.ps1 my-app -SkipTests
+    .\scripts\create_app.ps1 my-app -NoHooks
+
+REQUIREMENTS:
+    - Python 3.11+
+    - uv (https://docs.astral.sh/uv/)
+    - GitHub CLI (https://cli.github.com/)
 
 "@
 }
 
 function Main {
     param(
+        [Parameter(Position=0)]
+        [string]$AppName,
         [switch]$SkipTests,
         [switch]$NoHooks,
         [switch]$Help
@@ -524,49 +534,91 @@ function Main {
         exit 0
     }
 
+    # Show header
     Write-Host "╔════════════════════════════════════════════════╗" -ForegroundColor Blue
-    Write-Host "║  JPPT - Development Environment Setup         ║" -ForegroundColor Blue
+    Write-Host "║  JPPT - New Project Creation                  ║" -ForegroundColor Blue
     Write-Host "╚════════════════════════════════════════════════╝" -ForegroundColor Blue
     Write-Host ""
 
-    # Run setup steps
+    # Get current directory (JPPT template location)
+    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $sourceDir = Split-Path -Parent $scriptPath
+    $sourceDir = Resolve-Path $sourceDir
+    $targetDir = Join-Path (Split-Path -Parent $sourceDir) $AppName
+
+    # Run validation steps
     if (-not (Check-Python)) { exit 1 }
     if (-not (Check-Uv)) { exit 1 }
-    if (-not (Install-Dependencies)) { exit 1 }
-    if (-not (Setup-Config)) { exit 1 }
-    if (-not (Setup-Directories)) { exit 1 }
-    Install-Hooks -SkipHooks:$NoHooks
+    if (-not (Check-Gh)) { exit 1 }
+    if (-not (Validate-AppName -AppName $AppName)) { exit 1 }
+    if (-not (Check-TargetDirectory -TargetDir $targetDir)) { exit 1 }
 
-    # Optional tests
-    Run-TestsOptional -SkipTests:$SkipTests
+    # Setup error cleanup
+    $ErrorActionPreference = "Stop"
+    try {
+        # Copy and setup template
+        if (-not (Copy-Template -SourceDir $sourceDir -TargetDir $targetDir)) { throw "Copy failed" }
+        if (-not (Initialize-Git -TargetDir $targetDir)) { throw "Git init failed" }
+        if (-not (Update-ProjectName -AppName $AppName -TargetDir $targetDir)) { throw "Name substitution failed" }
+        if (-not (New-GitHubRepository -AppName $AppName -TargetDir $targetDir)) { throw "GitHub creation failed" }
 
-    # Success message
-    Write-Host ""
-    Write-Host "╔════════════════════════════════════════════════╗" -ForegroundColor Green
-    Write-Host "║  Setup Complete! 🎉                            ║" -ForegroundColor Green
-    Write-Host "╚════════════════════════════════════════════════╝" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "Next steps:" -ForegroundColor Blue
-    Write-Host ""
-    Write-Host "  1. Set up environment variables (if needed):"
-    Write-Host "     `$env:TELEGRAM_BOT_TOKEN=`"your-token`"" -ForegroundColor Cyan
-    Write-Host "     `$env:TELEGRAM_CHAT_ID=`"your-chat-id`"" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "  2. Review and customize your configuration:"
-    Write-Host "     config/dev.yaml" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "  3. Start the application:"
-    Write-Host "     .\scripts\run.ps1              # Start mode (dev)" -ForegroundColor Cyan
-    Write-Host "     .\scripts\run.ps1 batch        # Batch mode (dev)" -ForegroundColor Cyan
-    Write-Host "     .\scripts\run.ps1 start prod   # Start mode (prod)" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "  4. Run tests:"
-    Write-Host "     uv run pytest" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "Documentation:" -ForegroundColor Blue
-    Write-Host "  README.md - Project overview and usage"
-    Write-Host "  docs/     - Additional documentation"
-    Write-Host ""
+        # Install dependencies and setup (in target directory)
+        Set-Location $targetDir
+        if (-not (Install-Dependencies)) { throw "Dependency installation failed" }
+        if (-not (Setup-Config)) { throw "Config setup failed" }
+        if (-not (Setup-Directories)) { throw "Directory setup failed" }
+        Install-Hooks -SkipHooks:$NoHooks
+
+        # Optional tests
+        Run-TestsOptional -SkipTests:$SkipTests
+
+        # Success message
+        Write-Host ""
+        Write-Host "╔════════════════════════════════════════════════╗" -ForegroundColor Green
+        Write-Host "║  Project Created Successfully! 🎉              ║" -ForegroundColor Green
+        Write-Host "╚════════════════════════════════════════════════╝" -ForegroundColor Green
+        Write-Host ""
+        Write-Host "Project: " -NoNewline
+        Write-Host $AppName -ForegroundColor White
+        Write-Host "Location: " -NoNewline
+        Write-Host $targetDir -ForegroundColor White
+
+        if (Test-Path "$targetDir\.git") {
+            $repoUrl = gh repo view --json url -q .url 2>$null
+            if ($repoUrl) {
+                Write-Host "GitHub: " -NoNewline
+                Write-Host $repoUrl -ForegroundColor White
+            }
+        }
+
+        Write-Host ""
+        Write-Host "Next steps:" -ForegroundColor Blue
+        Write-Host ""
+        Write-Host "  1. Navigate to your project:"
+        Write-Host "     cd $targetDir" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "  2. Set up environment variables (if needed):"
+        Write-Host "     `$env:TELEGRAM_BOT_TOKEN=`"your-token`"" -ForegroundColor Cyan
+        Write-Host "     `$env:TELEGRAM_CHAT_ID=`"your-chat-id`"" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "  3. Review and customize:"
+        Write-Host "     config\dev.yaml" -ForegroundColor Cyan
+        Write-Host "     README.md" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "  4. Start developing:"
+        Write-Host "     .\scripts\run.ps1              # Start mode (dev)" -ForegroundColor Cyan
+        Write-Host "     .\scripts\run.ps1 batch        # Batch mode (dev)" -ForegroundColor Cyan
+        Write-Host ""
+    }
+    catch {
+        # Cleanup on error
+        if (Test-Path $targetDir) {
+            Print-Warning "Cleaning up incomplete project..."
+            Remove-Item -Recurse -Force $targetDir
+        }
+        Print-Error "Project creation failed: $_"
+        exit 1
+    }
 }
 
 # Run main function with parameters

@@ -497,11 +497,34 @@ setup_telegram_optional() {
 
         echo "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
         echo ""
-        print_info "Add these to your shell profile or .env file:"
-        echo ""
-        echo "  ${BLUE}export TELEGRAM_BOT_TOKEN=\"$bot_token\"${RESET}"
-        echo "  ${BLUE}export TELEGRAM_CHAT_ID=\"<your-chat-id-from-above>\"${RESET}"
-        echo ""
+
+        # Ask user to select/enter chat ID
+        read -p "Enter the CHAT_ID you want to use: " selected_chat_id
+
+        if [ -z "$selected_chat_id" ]; then
+            print_warning "No Chat ID entered, skipping configuration"
+            return 0
+        fi
+
+        # Update config/default.yaml
+        if [ -f "config/default.yaml" ]; then
+            print_info "Updating config/default.yaml..."
+
+            sed -i.bak "s/bot_token: \"\"/bot_token: \"$bot_token\"/" config/default.yaml
+            sed -i.bak "s/chat_id: \"\"/chat_id: \"$selected_chat_id\"/" config/default.yaml
+            sed -i.bak "s/enabled: false/enabled: true/" config/default.yaml
+            rm -f config/default.yaml.bak
+
+            print_success "Telegram settings saved to config/default.yaml!"
+            echo ""
+            print_info "Settings applied:"
+            echo "  ${GREEN}✓${RESET} telegram.enabled: true"
+            echo "  ${GREEN}✓${RESET} telegram.bot_token: $bot_token"
+            echo "  ${GREEN}✓${RESET} telegram.chat_id: $selected_chat_id"
+            echo ""
+        else
+            print_warning "config/default.yaml not found, skipping update"
+        fi
     else
         print_error "Failed to connect to Telegram API"
         print_info "Please check your BOT_TOKEN and try again"

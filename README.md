@@ -72,17 +72,17 @@ Copy-Item config/dev.yaml.example config/dev.yaml
 **Linux/macOS:**
 ```bash
 # Quick run scripts (recommended)
-./scripts/run.sh              # Start mode, dev environment
-./scripts/run.sh batch        # Batch mode, dev environment
-./scripts/run.sh start prod   # Start mode, prod environment
+./run.sh              # Start mode, dev environment
+./run.sh batch        # Batch mode, dev environment
+./run.sh start prod   # Start mode, prod environment
 ```
 
 **Windows (PowerShell):**
 ```powershell
 # Quick run scripts (recommended)
-.\scripts\run.ps1              # Start mode, dev environment
-.\scripts\run.ps1 batch        # Batch mode, dev environment
-.\scripts\run.ps1 start prod   # Start mode, prod environment
+.\run.ps1              # Start mode, dev environment
+.\run.ps1 batch        # Batch mode, dev environment
+.\run.ps1 start prod   # Start mode, prod environment
 ```
 
 **Or use uv directly (all platforms):**
@@ -121,10 +121,11 @@ src/
     └── ...
 
 scripts/                 # Automation scripts
-├── create_app.sh        # Initial setup script (Linux/macOS)
-├── create_app.ps1       # Initial setup script (Windows)
-├── run.sh               # Quick run wrapper (Linux/macOS)
-└── run.ps1              # Quick run wrapper (Windows)
+├── create_app.sh        # Project generator (Linux/macOS)
+└── create_app.ps1       # Project generator (Windows)
+
+run.sh                   # Quick run wrapper (Linux/macOS)
+run.ps1                  # Quick run wrapper (Windows)
 
 tests/                   # Test suite
 config/                  # Configuration files
@@ -192,26 +193,26 @@ Initial setup scripts - run once after cloning the template.
 
 Quick run wrappers - simplified app execution.
 
-**Linux/macOS (`scripts/run.sh`):**
+**Linux/macOS (`run.sh`):**
 ```bash
-./scripts/run.sh [MODE] [ENV]
-./scripts/run.sh --help           # Show usage
+./run.sh [MODE] [ENV]
+./run.sh --help           # Show usage
 
 # Examples:
-./scripts/run.sh                  # start mode, dev env
-./scripts/run.sh batch            # batch mode, dev env
-./scripts/run.sh start prod       # start mode, prod env
+./run.sh                  # start mode, dev env
+./run.sh batch            # batch mode, dev env
+./run.sh start prod       # start mode, prod env
 ```
 
-**Windows (`scripts/run.ps1`):**
+**Windows (`run.ps1`):**
 ```powershell
-.\scripts\run.ps1 [MODE] [ENV]
-.\scripts\run.ps1 -Help           # Show usage
+.\run.ps1 [MODE] [ENV]
+.\run.ps1 -Help           # Show usage
 
 # Examples:
-.\scripts\run.ps1                 # start mode, dev env
-.\scripts\run.ps1 batch           # batch mode, dev env
-.\scripts\run.ps1 start prod      # start mode, prod env
+.\run.ps1                 # start mode, dev env
+.\run.ps1 batch           # batch mode, dev env
+.\run.ps1 start prod      # start mode, prod env
 ```
 
 **Features:**

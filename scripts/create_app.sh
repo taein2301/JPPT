@@ -159,10 +159,18 @@ check_target_directory() {
     print_step 4 7 "Checking target directory..."
 
     if [ -d "$target_dir" ]; then
-        print_error "Directory already exists: $target_dir"
+        print_warning "Directory already exists: $target_dir"
         echo ""
-        echo "Please choose a different app name or remove the existing directory."
-        return 1
+        read -p "Delete existing directory and continue? [y/N] " -n 1 -r
+        echo ""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            print_info "Removing existing directory..."
+            rm -rf "$target_dir"
+            print_success "Existing directory removed"
+        else
+            print_error "Aborted by user"
+            return 1
+        fi
     fi
 
     print_success "Target directory is available: $target_dir"
@@ -187,9 +195,11 @@ copy_template() {
         --exclude='.pytest_cache' \
         --exclude='.mypy_cache' \
         --exclude='.ruff_cache' \
+        --exclude='htmlcov/' \
         --exclude='logs/' \
         --exclude='config/dev.yaml' \
         --exclude='config/prod.yaml' \
+        --exclude='docs/' \
         "$source_dir/" "$target_dir/"; then
         print_error "Failed to copy template"
         return 1
@@ -262,8 +272,8 @@ Created from [JPPT](https://github.com/taein2301/JPPT) template.
 ## Run
 
 \`\`\`bash
-./scripts/run.sh              # Start mode (dev)
-./scripts/run.sh batch        # Batch mode (dev)
+./run.sh              # Start mode (dev)
+./run.sh batch        # Batch mode (dev)
 \`\`\`
 
 ## Development
@@ -291,6 +301,27 @@ create_github_repo() {
     print_info "Creating GitHub repository..."
 
     cd "$target_dir" || return 1
+
+    # Check if repository already exists
+    local github_user=$(gh api user -q .login 2>/dev/null)
+    if gh repo view "$github_user/$app_name" &>/dev/null; then
+        print_warning "GitHub repository already exists: $github_user/$app_name"
+        echo ""
+        read -p "Delete existing repository and continue? [y/N] " -n 1 -r
+        echo ""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            print_info "Deleting existing repository..."
+            if gh repo delete "$github_user/$app_name" --yes; then
+                print_success "Existing repository deleted"
+            else
+                print_error "Failed to delete existing repository"
+                return 1
+            fi
+        else
+            print_error "Aborted by user"
+            return 1
+        fi
+    fi
 
     if ! gh repo create "$app_name" \
         --private \
@@ -546,8 +577,8 @@ main() {
     echo "     ${BLUE}README.md${RESET}"
     echo ""
     echo "  4. Start developing:"
-    echo "     ${BLUE}./scripts/run.sh${RESET}              # Start mode (dev)"
-    echo "     ${BLUE}./scripts/run.sh batch${RESET}        # Batch mode (dev)"
+    echo "     ${BLUE}./run.sh${RESET}              # Start mode (dev)"
+    echo "     ${BLUE}./run.sh batch${RESET}        # Batch mode (dev)"
     echo ""
     echo ""
     echo "${BOLD}${GREEN}Opening new shell in project directory...${RESET}"

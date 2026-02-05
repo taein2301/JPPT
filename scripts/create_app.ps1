@@ -199,9 +199,11 @@ function Copy-Template {
             '.pytest_cache',
             '.mypy_cache',
             '.ruff_cache',
+            'htmlcov',
             'logs',
             'config\dev.yaml',
-            'config\prod.yaml'
+            'config\prod.yaml',
+            'docs'
         )
 
         # Use robocopy for efficient directory copying

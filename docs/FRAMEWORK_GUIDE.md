@@ -8,7 +8,7 @@ This guide explains how to use the JPPT template for your projects.
 
 ```bash
 # Clone template
-git clone <template-url> my-new-project
+git clone https://github.com/taein2301/JPPT.git my-new-project
 cd my-new-project
 
 # Remove template git history

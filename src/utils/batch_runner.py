@@ -6,6 +6,7 @@
 from loguru import logger
 
 from src.utils.config import Settings
+from src.utils.telegram import TelegramNotifier
 
 
 async def run_batch(settings: Settings) -> None:
@@ -28,7 +29,27 @@ async def run_batch(settings: Settings) -> None:
     logger.info("Batch mode started")
     logger.info(f"App: {settings.app.name} v{settings.app.version}")
 
-    # TODO: 배치 로직 구현
-    logger.warning("Batch runner is a template - implement your logic")
+    # Telegram notifier 초기화
+    notifier = TelegramNotifier(
+        bot_token=settings.telegram.bot_token,
+        chat_id=settings.telegram.chat_id,
+        enabled=settings.telegram.enabled,
+    )
 
-    logger.info("Batch mode completed")
+    # 시작 알림 전송
+    await notifier.send_message(
+        f"▶️ **{settings.app.name}** batch started\n" f"Version: {settings.app.version}"
+    )
+
+    try:
+        # TODO: 배치 로직 구현
+        logger.warning("Batch runner is a template - implement your logic")
+
+        logger.info("Batch mode completed")
+        # 완료 알림
+        await notifier.send_message(f"✅ **{settings.app.name}** batch completed")
+    except Exception as e:
+        logger.error(f"Batch failed: {e}")
+        # 에러 알림
+        await notifier.send_error(e, context="Batch mode failed")
+        raise

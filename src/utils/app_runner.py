@@ -9,6 +9,7 @@ from loguru import logger
 
 from src.utils.config import Settings
 from src.utils.signals import GracefulShutdown, setup_signal_handlers
+from src.utils.telegram import TelegramNotifier
 
 
 async def run_app(settings: Settings) -> None:
@@ -38,6 +39,20 @@ async def run_app(settings: Settings) -> None:
     logger.info("App mode started")
     logger.info(f"App: {settings.app.name} v{settings.app.version}")
 
+    # Telegram notifier 초기화
+    notifier = TelegramNotifier(
+        bot_token=settings.telegram.bot_token,
+        chat_id=settings.telegram.chat_id,
+        enabled=settings.telegram.enabled,
+    )
+
+    # 시작 알림 전송
+    await notifier.send_message(
+        f"🚀 **{settings.app.name}** started\n"
+        f"Version: {settings.app.version}\n"
+        f"Mode: App (daemon)"
+    )
+
     # Graceful shutdown 설정
     shutdown = GracefulShutdown()
     setup_signal_handlers(shutdown)
@@ -45,14 +60,22 @@ async def run_app(settings: Settings) -> None:
     # TODO: 정리 콜백 등록
     # shutdown.register_cleanup(your_cleanup_function)
 
-    async with shutdown:
-        logger.info("App running (Press Ctrl+C to stop)")
+    try:
+        async with shutdown:
+            logger.info("App running (Press Ctrl+C to stop)")
 
-        # TODO: 메인 루프 구현
-        iteration = 0
-        while not shutdown.should_exit:
-            iteration += 1
-            logger.debug(f"App iteration {iteration}")
-            await asyncio.sleep(5)  # 실제 로직으로 교체
+            # TODO: 메인 루프 구현
+            iteration = 0
+            while not shutdown.should_exit:
+                iteration += 1
+                logger.debug(f"App iteration {iteration}")
+                await asyncio.sleep(5)  # 실제 로직으로 교체
 
-    logger.info("App mode stopped")
+        logger.info("App mode stopped")
+        # 정상 종료 알림
+        await notifier.send_message(f"🛑 **{settings.app.name}** stopped gracefully")
+    except Exception as e:
+        logger.error(f"App crashed: {e}")
+        # 에러 알림
+        await notifier.send_error(e, context="App mode crashed")
+        raise

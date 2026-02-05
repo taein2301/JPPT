@@ -17,6 +17,7 @@ Modern Python CLI application template with best practices built-in.
 
 ### 1. Initial Setup
 
+**Linux/macOS:**
 ```bash
 # One-command setup (recommended)
 ./scripts/create_app.sh
@@ -24,6 +25,16 @@ Modern Python CLI application template with best practices built-in.
 # Or setup with options
 ./scripts/create_app.sh --skip-tests  # Skip initial tests
 ./scripts/create_app.sh --no-hooks    # Skip pre-commit hooks
+```
+
+**Windows (PowerShell):**
+```powershell
+# One-command setup (recommended)
+.\scripts\create_app.ps1
+
+# Or setup with options
+.\scripts\create_app.ps1 -SkipTests   # Skip initial tests
+.\scripts\create_app.ps1 -NoHooks     # Skip pre-commit hooks
 ```
 
 This will:
@@ -36,13 +47,24 @@ This will:
 
 ### 2. Run the Application
 
+**Linux/macOS:**
 ```bash
 # Quick run scripts (recommended)
 ./scripts/run.sh              # Start mode, dev environment
 ./scripts/run.sh batch        # Batch mode, dev environment
 ./scripts/run.sh start prod   # Start mode, prod environment
+```
 
-# Or use uv directly
+**Windows (PowerShell):**
+```powershell
+# Quick run scripts (recommended)
+.\scripts\run.ps1              # Start mode, dev environment
+.\scripts\run.ps1 batch        # Batch mode, dev environment
+.\scripts\run.ps1 start prod   # Start mode, prod environment
+```
+
+**Or use uv directly (all platforms):**
+```bash
 uv run python -m src.main start --env dev
 uv run python -m src.main batch --env dev
 ```
@@ -77,8 +99,10 @@ src/
     └── ...
 
 scripts/                 # Automation scripts
-├── create_app.sh        # Initial setup script
-└── run.sh               # Quick run wrapper
+├── create_app.sh        # Initial setup script (Linux/macOS)
+├── create_app.ps1       # Initial setup script (Windows)
+├── run.sh               # Quick run wrapper (Linux/macOS)
+└── run.ps1              # Quick run wrapper (Windows)
 
 tests/                   # Test suite
 config/                  # Configuration files
@@ -97,9 +121,17 @@ Configuration is automatically set up by `./scripts/create_app.sh`, but you can 
 2. Edit `config/dev.yaml` with your settings
 
 3. Set environment variables for secrets:
+
+   **Linux/macOS:**
    ```bash
    export TELEGRAM_BOT_TOKEN="your-token"
    export TELEGRAM_CHAT_ID="your-chat-id"
+   ```
+
+   **Windows (PowerShell):**
+   ```powershell
+   $env:TELEGRAM_BOT_TOKEN="your-token"
+   $env:TELEGRAM_CHAT_ID="your-chat-id"
    ```
 
 4. For production, create `config/prod.yaml`:
@@ -110,13 +142,20 @@ Configuration is automatically set up by `./scripts/create_app.sh`, but you can 
 
 ## Scripts
 
-### `scripts/create_app.sh`
+### Setup Scripts
 
-Initial setup script - run this once after cloning the template.
+Initial setup scripts - run once after cloning the template.
 
+**Linux/macOS (`scripts/create_app.sh`):**
 ```bash
 ./scripts/create_app.sh           # Full setup
 ./scripts/create_app.sh --help    # Show options
+```
+
+**Windows (`scripts/create_app.ps1`):**
+```powershell
+.\scripts\create_app.ps1          # Full setup
+.\scripts\create_app.ps1 -Help    # Show options
 ```
 
 **Features:**
@@ -127,21 +166,30 @@ Initial setup script - run this once after cloning the template.
 - Installs pre-commit hooks
 - Runs initial tests (optional)
 
-### `scripts/run.sh`
+### Run Scripts
 
-Quick run wrapper - simplified app execution.
+Quick run wrappers - simplified app execution.
 
+**Linux/macOS (`scripts/run.sh`):**
 ```bash
 ./scripts/run.sh [MODE] [ENV]
 ./scripts/run.sh --help           # Show usage
-```
 
-**Examples:**
-```bash
+# Examples:
 ./scripts/run.sh                  # start mode, dev env
 ./scripts/run.sh batch            # batch mode, dev env
 ./scripts/run.sh start prod       # start mode, prod env
-./scripts/run.sh batch prod       # batch mode, prod env
+```
+
+**Windows (`scripts/run.ps1`):**
+```powershell
+.\scripts\run.ps1 [MODE] [ENV]
+.\scripts\run.ps1 -Help           # Show usage
+
+# Examples:
+.\scripts\run.ps1                 # start mode, dev env
+.\scripts\run.ps1 batch           # batch mode, dev env
+.\scripts\run.ps1 start prod      # start mode, prod env
 ```
 
 **Features:**

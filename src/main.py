@@ -26,7 +26,9 @@ app = typer.Typer(
 def version_callback(value: bool) -> None:
     """버전 정보를 출력하고 종료합니다."""
     if value:
-        typer.echo("jppt version 0.1.0")
+        # Load config to get app name and version dynamically
+        settings = load_config(env="dev")
+        typer.echo(f"{settings.app.name} version {settings.app.version}")
         raise typer.Exit()
 
 

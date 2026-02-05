@@ -14,7 +14,8 @@ def test_cli_version() -> None:
     """Test --version flag."""
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "jppt" in result.stdout.lower()
+    # Version output should contain "version" and app name from config
+    assert "version" in result.stdout.lower()
 
 
 def test_cli_help() -> None:

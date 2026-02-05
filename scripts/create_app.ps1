@@ -272,6 +272,71 @@ function Initialize-Git {
     }
 }
 
+function Update-ProjectName {
+    param(
+        [string]$AppName,
+        [string]$TargetDir
+    )
+
+    Print-Step -Current 7 -Total 7 -Message "Substituting project name..."
+
+    try {
+        Set-Location $TargetDir
+
+        # 1. Update config/default.yaml
+        if (Test-Path "config/default.yaml") {
+            (Get-Content "config/default.yaml") -replace 'name: "my-app"', "name: `"$AppName`"" | Set-Content "config/default.yaml"
+            Print-Success "Updated config/default.yaml"
+        }
+
+        # 2. Update pyproject.toml
+        if (Test-Path "pyproject.toml") {
+            (Get-Content "pyproject.toml") -replace 'name = "jppt"', "name = `"$AppName`"" | Set-Content "pyproject.toml"
+            Print-Success "Updated pyproject.toml"
+        }
+
+        # 3. Create minimal README.md
+        $readmeContent = @"
+# $AppName
+
+Created from [JPPT](https://github.com/taein2301/JPPT) template.
+
+## Setup
+
+``````bash
+.\scripts\create_app.ps1
+``````
+
+## Run
+
+``````bash
+.\scripts\run.ps1              # Start mode (dev)
+.\scripts\run.ps1 batch        # Batch mode (dev)
+``````
+
+## Development
+
+``````bash
+uv run pytest                 # Run tests
+uv run ruff format .          # Format code
+uv run mypy src/              # Type check
+``````
+"@
+        Set-Content -Path "README.md" -Value $readmeContent
+        Print-Success "Created README.md"
+
+        # Commit the substitutions
+        git add config/default.yaml pyproject.toml README.md 2>&1 | Out-Null
+        git commit -m "chore: update project name to $AppName" 2>&1 | Out-Null
+
+        return $true
+    }
+    catch {
+        Print-Error "Failed to substitute project name: $_"
+        return $false
+    }
+}
+
 # ============================================================================
 # Section 3: Installation Functions
 # ============================================================================

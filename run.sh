@@ -141,15 +141,21 @@ main() {
     check_config "$ENV"
     setup_logs_dir
 
+    # Extract app name from config
+    APP_NAME=$(grep "name:" config/default.yaml | head -1 | sed 's/.*: *"\(.*\)".*/\1/')
+    if [ -z "$APP_NAME" ]; then
+        APP_NAME="jppt"  # Fallback to default if extraction fails
+    fi
+
     # Determine log file name
     if [ "$MODE" = "batch" ]; then
-        LOG_FILE="logs/jppt_batch.log"
+        LOG_FILE="logs/${APP_NAME}_batch.log"
     else
-        LOG_FILE="logs/jppt.log"
+        LOG_FILE="logs/${APP_NAME}.log"
     fi
 
     # Print execution info
-    echo "${BOLD}Starting jppt...${RESET}"
+    echo "${BOLD}Starting ${APP_NAME}...${RESET}"
     echo "  ${BLUE}Mode:${RESET}        $MODE"
     echo "  ${BLUE}Environment:${RESET} $ENV"
     echo "  ${BLUE}Config:${RESET}      config/${ENV}.yaml"

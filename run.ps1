@@ -132,15 +132,24 @@ function Main {
     Check-Config -Env $Env
     Setup-LogsDirectory
 
+    # Extract app name from config
+    $appName = "jppt"  # Default fallback
+    if (Test-Path "config/default.yaml") {
+        $nameMatch = Select-String -Path "config/default.yaml" -Pattern '^\s*name:\s*"([^"]+)"' | Select-Object -First 1
+        if ($nameMatch) {
+            $appName = $nameMatch.Matches.Groups[1].Value
+        }
+    }
+
     # Determine log file name
     $logFile = if ($Mode -eq "batch") {
-        "logs/jppt_batch.log"
+        "logs/${appName}_batch.log"
     } else {
-        "logs/jppt.log"
+        "logs/${appName}.log"
     }
 
     # Print execution info
-    Write-Host "Starting jppt..." -ForegroundColor Blue
+    Write-Host "Starting $appName..." -ForegroundColor Blue
     Write-Host "  Mode:        $Mode" -ForegroundColor Gray
     Write-Host "  Environment: $Env" -ForegroundColor Gray
     Write-Host "  Config:      config/$Env.yaml" -ForegroundColor Gray

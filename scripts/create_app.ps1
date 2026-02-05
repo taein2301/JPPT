@@ -337,6 +337,45 @@ uv run mypy src/              # Type check
     }
 }
 
+function New-GitHubRepository {
+    param(
+        [string]$AppName,
+        [string]$TargetDir
+    )
+
+    Write-Host ""
+    Print-Info "Creating GitHub repository..."
+
+    try {
+        Set-Location $TargetDir
+
+        gh repo create $AppName `
+            --private `
+            --source=. `
+            --description="Created from JPPT template" `
+            --push 2>&1 | Out-Null
+
+        if ($LASTEXITCODE -ne 0) {
+            throw "gh repo create failed"
+        }
+
+        $repoUrl = gh repo view --json url -q .url 2>&1
+        Print-Success "GitHub repository created: $repoUrl"
+        Print-Success "Initial commit pushed to main branch"
+
+        return $true
+    }
+    catch {
+        Print-Error "Failed to create GitHub repository"
+        Write-Host ""
+        Print-Warning "Local project created successfully at: $TargetDir"
+        Print-Info "You can create the repository manually:"
+        Print-Info "  cd $TargetDir"
+        Print-Info "  gh repo create $AppName --private --source=. --push"
+        return $false
+    }
+}
+
 # ============================================================================
 # Section 3: Installation Functions
 # ============================================================================

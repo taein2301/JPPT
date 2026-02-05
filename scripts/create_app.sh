@@ -283,6 +283,36 @@ EOF
     return 0
 }
 
+create_github_repo() {
+    local app_name="$1"
+    local target_dir="$2"
+
+    echo ""
+    print_info "Creating GitHub repository..."
+
+    cd "$target_dir" || return 1
+
+    if ! gh repo create "$app_name" \
+        --private \
+        --source=. \
+        --description="Created from JPPT template" \
+        --push; then
+        print_error "Failed to create GitHub repository"
+        echo ""
+        print_warning "Local project created successfully at: $target_dir"
+        print_info "You can create the repository manually:"
+        print_info "  cd $target_dir"
+        print_info "  gh repo create $app_name --private --source=. --push"
+        return 1
+    fi
+
+    local repo_url=$(gh repo view --json url -q .url)
+    print_success "GitHub repository created: $repo_url"
+    print_success "Initial commit pushed to main branch"
+
+    return 0
+}
+
 # ============================================================================
 # Section 3: Installation Functions
 # ============================================================================

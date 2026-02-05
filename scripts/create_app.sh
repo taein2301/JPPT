@@ -225,6 +225,64 @@ init_git() {
     return 0
 }
 
+substitute_project_name() {
+    local app_name="$1"
+    local target_dir="$2"
+
+    print_step 7 7 "Substituting project name..."
+
+    cd "$target_dir" || return 1
+
+    # 1. Update config/default.yaml
+    if [ -f "config/default.yaml" ]; then
+        sed -i.bak "s/name: \"my-app\"/name: \"$app_name\"/" config/default.yaml
+        rm -f config/default.yaml.bak
+        print_success "Updated config/default.yaml"
+    fi
+
+    # 2. Update pyproject.toml
+    if [ -f "pyproject.toml" ]; then
+        sed -i.bak "s/name = \"jppt\"/name = \"$app_name\"/" pyproject.toml
+        rm -f pyproject.toml.bak
+        print_success "Updated pyproject.toml"
+    fi
+
+    # 3. Create minimal README.md
+    cat > README.md << EOF
+# $app_name
+
+Created from [JPPT](https://github.com/taein2301/JPPT) template.
+
+## Setup
+
+\`\`\`bash
+./scripts/create_app.sh
+\`\`\`
+
+## Run
+
+\`\`\`bash
+./scripts/run.sh              # Start mode (dev)
+./scripts/run.sh batch        # Batch mode (dev)
+\`\`\`
+
+## Development
+
+\`\`\`bash
+uv run pytest                 # Run tests
+uv run ruff format .          # Format code
+uv run mypy src/              # Type check
+\`\`\`
+EOF
+    print_success "Created README.md"
+
+    # Commit the substitutions
+    git add config/default.yaml pyproject.toml README.md
+    git commit -m "chore: update project name to $app_name"
+
+    return 0
+}
+
 # ============================================================================
 # Section 3: Installation Functions
 # ============================================================================

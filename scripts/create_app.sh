@@ -289,8 +289,13 @@ uv run mypy src/              # Type check
 EOF
     print_success "Created README.md"
 
+    # 4. Create docs directory and empty PRD.md
+    mkdir -p docs
+    touch docs/PRD.md
+    print_success "Created docs/PRD.md"
+
     # Commit the substitutions
-    git add config/default.yaml pyproject.toml README.md
+    git add config/default.yaml pyproject.toml README.md docs/PRD.md
     git commit -m "chore: update project name to $app_name"
 
     return 0

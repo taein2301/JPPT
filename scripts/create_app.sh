@@ -95,6 +95,80 @@ check_uv() {
     return 0
 }
 
+validate_app_name() {
+    local app_name="$1"
+
+    if [ -z "$app_name" ]; then
+        print_error "App name is required"
+        echo ""
+        echo "Usage: ./scripts/create_app.sh <app-name> [OPTIONS]"
+        echo "Example: ./scripts/create_app.sh my-awesome-app"
+        return 1
+    fi
+
+    # Check valid characters (lowercase, numbers, hyphen, underscore)
+    if ! echo "$app_name" | grep -qE '^[a-z0-9][a-z0-9_-]*$'; then
+        print_error "Invalid app name: '$app_name'"
+        echo ""
+        echo "App name must:"
+        echo "  - Start with lowercase letter or number"
+        echo "  - Contain only lowercase letters, numbers, hyphens, underscores"
+        echo ""
+        echo "Valid examples: my-app, my_app, myapp123"
+        echo "Invalid examples: MyApp, -myapp, my app"
+        return 1
+    fi
+
+    print_success "App name '$app_name' is valid"
+    return 0
+}
+
+check_gh() {
+    print_step 3 7 "Checking GitHub CLI installation..."
+
+    if ! command -v gh &> /dev/null; then
+        print_error "GitHub CLI (gh) is not installed"
+        echo ""
+        echo "Install GitHub CLI:"
+        echo "  macOS: brew install gh"
+        echo "  Linux: See https://cli.github.com/"
+        echo ""
+        return 1
+    fi
+
+    local gh_version=$(gh --version 2>&1 | head -n1)
+    print_success "GitHub CLI found: $gh_version"
+
+    # Check authentication
+    if ! gh auth status &> /dev/null; then
+        print_error "GitHub CLI is not authenticated"
+        echo ""
+        echo "Please authenticate with:"
+        echo "  gh auth login"
+        echo ""
+        return 1
+    fi
+
+    print_success "GitHub CLI is authenticated"
+    return 0
+}
+
+check_target_directory() {
+    local target_dir="$1"
+
+    print_step 4 7 "Checking target directory..."
+
+    if [ -d "$target_dir" ]; then
+        print_error "Directory already exists: $target_dir"
+        echo ""
+        echo "Please choose a different app name or remove the existing directory."
+        return 1
+    fi
+
+    print_success "Target directory is available: $target_dir"
+    return 0
+}
+
 # ============================================================================
 # Section 3: Installation Functions
 # ============================================================================

@@ -1,6 +1,7 @@
 """Tests for configuration management."""
 
 import os
+import tomllib
 from pathlib import Path
 from unittest.mock import patch
 
@@ -13,7 +14,14 @@ from src.utils.exceptions import ConfigurationError
 def test_load_config_default() -> None:
     """Test loading default configuration."""
     config = load_config(env="dev")
-    assert config.app.name == "jppt"
+
+    # Read actual project name from pyproject.toml
+    pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
+    with open(pyproject_path, "rb") as f:
+        pyproject = tomllib.load(f)
+    expected_name = pyproject["project"]["name"]
+
+    assert config.app.name == expected_name
     assert config.app.version == "0.1.0"
 
 

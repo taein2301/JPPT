@@ -6,21 +6,37 @@ This guide explains how to use the JPPT template for your projects.
 
 ### 1. Create New Project from Template
 
+**Linux/macOS:**
 ```bash
-# Clone template
-git clone https://github.com/taein2301/JPPT.git my-new-project
-cd my-new-project
+# Navigate to JPPT directory
+cd /path/to/JPPT
 
-# Remove template git history
-rm -rf .git
-git init
+# Create new project
+./scripts/create_app.sh my-new-project
 
-# Install dependencies
-uv sync --all-extras
-
-# Copy example config
-cp config/dev.yaml.example config/dev.yaml
+# Navigate to new project
+cd ../my-new-project
 ```
+
+**Windows (PowerShell):**
+```powershell
+# Navigate to JPPT directory
+cd C:\path\to\JPPT
+
+# Create new project
+.\scripts\create_app.ps1 my-new-project
+
+# Navigate to new project
+cd ..\my-new-project
+```
+
+This will:
+- Create a new directory `my-new-project` next to JPPT
+- Copy all template files (excluding build artifacts)
+- Update project name in configuration files
+- Initialize git repository with initial commit
+- Create private GitHub repository and push
+- Install dependencies and run setup
 
 ### 2. Configure Your Application
 

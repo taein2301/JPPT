@@ -145,8 +145,7 @@ function Main {
 
     # Run the application
     try {
-        $pythonCmd = if (Get-Command python3 -ErrorAction SilentlyContinue) { "python3" } else { "python" }
-        uv run $pythonCmd -m src.main $Mode --env $Env
+        uv run python -m src.main $Mode --env $Env
         exit 0
     }
     catch {

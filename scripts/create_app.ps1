@@ -175,6 +175,103 @@ function Check-TargetDirectory {
     return $true
 }
 
+function Copy-Template {
+    param(
+        [string]$SourceDir,
+        [string]$TargetDir
+    )
+
+    Print-Step -Current 5 -Total 7 -Message "Copying template to $TargetDir..."
+
+    try {
+        # Create parent directory if needed
+        $parentDir = Split-Path $TargetDir
+        if (-not (Test-Path $parentDir)) {
+            New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
+        }
+
+        # Copy directory with exclusions
+        $excludeItems = @(
+            '.git',
+            '.venv',
+            '__pycache__',
+            '*.pyc',
+            '.pytest_cache',
+            '.mypy_cache',
+            '.ruff_cache',
+            'logs',
+            'config\dev.yaml',
+            'config\prod.yaml'
+        )
+
+        # Use robocopy for efficient directory copying
+        $robocopyArgs = @(
+            $SourceDir,
+            $TargetDir,
+            '/E',  # Copy subdirectories including empty ones
+            '/NP', # No progress
+            '/NFL', # No file list
+            '/NDL', # No directory list
+            '/NJH', # No job header
+            '/NJS'  # No job summary
+        )
+
+        # Add exclusions
+        foreach ($exclude in $excludeItems) {
+            $robocopyArgs += '/XD'
+            $robocopyArgs += $exclude
+            $robocopyArgs += '/XF'
+            $robocopyArgs += $exclude
+        }
+
+        $result = & robocopy @robocopyArgs 2>&1
+
+        # Robocopy exit codes: 0-7 are success, 8+ are errors
+        if ($LASTEXITCODE -ge 8) {
+            throw "Robocopy failed with exit code $LASTEXITCODE"
+        }
+
+        Print-Success "Template copied successfully"
+        return $true
+    }
+    catch {
+        Print-Error "Failed to copy template: $_"
+        return $false
+    }
+}
+
+function Initialize-Git {
+    param([string]$TargetDir)
+
+    Print-Step -Current 6 -Total 7 -Message "Initializing git repository..."
+
+    try {
+        Set-Location $TargetDir
+
+        git init 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to initialize git repository"
+        }
+
+        git add . 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to stage files"
+        }
+
+        git commit -m "Initial commit from JPPT template" 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to create initial commit"
+        }
+
+        Print-Success "Git repository initialized"
+        return $true
+    }
+    catch {
+        Print-Error $_
+        return $false
+    }
+}
+
 # ============================================================================
 # Section 3: Installation Functions
 # ============================================================================

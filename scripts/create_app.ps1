@@ -7,6 +7,9 @@ $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
+# Clear any existing virtual environment from parent template
+Remove-Item Env:VIRTUAL_ENV -ErrorAction SilentlyContinue
+
 # ============================================================================
 # Section 1: Colors and Helper Functions
 # ============================================================================

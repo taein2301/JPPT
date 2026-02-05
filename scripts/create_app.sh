@@ -4,6 +4,9 @@
 
 set -e  # Exit on error
 
+# Clear any existing virtual environment from parent template
+unset VIRTUAL_ENV
+
 # ============================================================================
 # Section 1: Colors and Helper Functions
 # ============================================================================

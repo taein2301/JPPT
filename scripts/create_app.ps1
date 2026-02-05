@@ -3,6 +3,10 @@
 
 $ErrorActionPreference = "Stop"
 
+# Set console encoding to UTF-8 for proper character display
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
 # ============================================================================
 # Section 1: Colors and Helper Functions
 # ============================================================================

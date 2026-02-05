@@ -169,6 +169,62 @@ check_target_directory() {
     return 0
 }
 
+copy_template() {
+    local source_dir="$1"
+    local target_dir="$2"
+
+    print_step 5 7 "Copying template to $target_dir..."
+
+    # Create parent directory if needed
+    mkdir -p "$(dirname "$target_dir")"
+
+    # Copy with rsync, excluding build artifacts and local config
+    if ! rsync -av \
+        --exclude='.git' \
+        --exclude='.venv' \
+        --exclude='__pycache__' \
+        --exclude='*.pyc' \
+        --exclude='.pytest_cache' \
+        --exclude='.mypy_cache' \
+        --exclude='.ruff_cache' \
+        --exclude='logs/' \
+        --exclude='config/dev.yaml' \
+        --exclude='config/prod.yaml' \
+        "$source_dir/" "$target_dir/"; then
+        print_error "Failed to copy template"
+        return 1
+    fi
+
+    print_success "Template copied successfully"
+    return 0
+}
+
+init_git() {
+    local target_dir="$1"
+
+    print_step 6 7 "Initializing git repository..."
+
+    cd "$target_dir" || return 1
+
+    if ! git init; then
+        print_error "Failed to initialize git repository"
+        return 1
+    fi
+
+    if ! git add .; then
+        print_error "Failed to stage files"
+        return 1
+    fi
+
+    if ! git commit -m "Initial commit from JPPT template"; then
+        print_error "Failed to create initial commit"
+        return 1
+    fi
+
+    print_success "Git repository initialized"
+    return 0
+}
+
 # ============================================================================
 # Section 3: Installation Functions
 # ============================================================================

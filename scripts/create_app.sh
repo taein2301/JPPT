@@ -51,7 +51,7 @@ print_info() {
 # ============================================================================
 
 check_python() {
-    print_step 1 6 "Checking Python version..."
+    print_step 1 7 "Checking Python version..."
 
     if ! command -v python3 &> /dev/null; then
         print_error "Python 3 is not installed"
@@ -78,7 +78,7 @@ check_python() {
 }
 
 check_uv() {
-    print_step 2 6 "Checking uv installation..."
+    print_step 2 7 "Checking uv installation..."
 
     if ! command -v uv &> /dev/null; then
         print_error "uv is not installed"
@@ -415,9 +415,12 @@ run_tests_optional() {
 
 print_usage() {
     cat << EOF
-Usage: ./scripts/create_app.sh [OPTIONS]
+Usage: ./scripts/create_app.sh <app-name> [OPTIONS]
 
-Set up JPPT development environment in one command.
+Create a new project from JPPT template.
+
+ARGUMENTS:
+    <app-name>      Name of the new project (lowercase, numbers, -, _ only)
 
 OPTIONS:
     --skip-tests    Skip running initial tests
@@ -425,18 +428,31 @@ OPTIONS:
     --help          Show this help message
 
 EXAMPLES:
-    ./scripts/create_app.sh              # Full setup
-    ./scripts/create_app.sh --skip-tests # Setup without tests
-    ./scripts/create_app.sh --no-hooks   # Setup without hooks
+    ./scripts/create_app.sh my-awesome-app
+    ./scripts/create_app.sh my-app --skip-tests
+    ./scripts/create_app.sh my-app --no-hooks
+
+REQUIREMENTS:
+    - Python 3.11+
+    - uv (https://docs.astral.sh/uv/)
+    - GitHub CLI (https://cli.github.com/)
 
 EOF
 }
 
 main() {
-    # Parse arguments
+    # Parse app name (first positional argument)
+    APP_NAME=""
     SKIP_TESTS=false
     SKIP_HOOKS=false
 
+    # Get app name from first argument
+    if [ -n "$1" ] && [[ ! "$1" =~ ^-- ]]; then
+        APP_NAME="$1"
+        shift
+    fi
+
+    # Parse options
     for arg in "$@"; do
         case $arg in
             --skip-tests)
@@ -459,14 +475,40 @@ main() {
         esac
     done
 
+    # Show header
     echo "${BOLD}${BLUE}╔════════════════════════════════════════════════╗${RESET}"
-    echo "${BOLD}${BLUE}║  JPPT - Development Environment Setup         ║${RESET}"
+    echo "${BOLD}${BLUE}║  JPPT - New Project Creation                  ║${RESET}"
     echo "${BOLD}${BLUE}╚════════════════════════════════════════════════╝${RESET}"
     echo ""
 
-    # Run setup steps
+    # Get current directory (JPPT template location)
+    SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    TARGET_DIR="$(dirname "$SOURCE_DIR")/$APP_NAME"
+
+    # Run validation steps
     check_python || exit 1
     check_uv || exit 1
+    check_gh || exit 1
+    validate_app_name "$APP_NAME" || exit 1
+    check_target_directory "$TARGET_DIR" || exit 1
+
+    # Setup error cleanup
+    cleanup_on_error() {
+        if [ -d "$TARGET_DIR" ]; then
+            print_warning "Cleaning up incomplete project..."
+            rm -rf "$TARGET_DIR"
+        fi
+    }
+    trap cleanup_on_error ERR
+
+    # Copy and setup template
+    copy_template "$SOURCE_DIR" "$TARGET_DIR" || exit 1
+    init_git "$TARGET_DIR" || exit 1
+    substitute_project_name "$APP_NAME" "$TARGET_DIR" || exit 1
+    create_github_repo "$APP_NAME" "$TARGET_DIR" || exit 1
+
+    # Install dependencies and setup (in target directory)
+    cd "$TARGET_DIR" || exit 1
     install_deps || exit 1
     setup_config || exit 1
     setup_dirs || exit 1
@@ -478,29 +520,34 @@ main() {
     # Success message
     echo ""
     echo "${BOLD}${GREEN}╔════════════════════════════════════════════════╗${RESET}"
-    echo "${BOLD}${GREEN}║  Setup Complete! 🎉                            ║${RESET}"
+    echo "${BOLD}${GREEN}║  Project Created Successfully! 🎉              ║${RESET}"
     echo "${BOLD}${GREEN}╚════════════════════════════════════════════════╝${RESET}"
+    echo ""
+    echo "${BOLD}Project:${RESET} $APP_NAME"
+    echo "${BOLD}Location:${RESET} $TARGET_DIR"
+    if [ -d "$TARGET_DIR/.git" ]; then
+        local repo_url=$(cd "$TARGET_DIR" && gh repo view --json url -q .url 2>/dev/null || echo "")
+        if [ -n "$repo_url" ]; then
+            echo "${BOLD}GitHub:${RESET} $repo_url"
+        fi
+    fi
     echo ""
     echo "${BOLD}Next steps:${RESET}"
     echo ""
-    echo "  1. Set up environment variables (if needed):"
+    echo "  1. Navigate to your project:"
+    echo "     ${BLUE}cd $TARGET_DIR${RESET}"
+    echo ""
+    echo "  2. Set up environment variables (if needed):"
     echo "     ${BLUE}export TELEGRAM_BOT_TOKEN=\"your-token\"${RESET}"
     echo "     ${BLUE}export TELEGRAM_CHAT_ID=\"your-chat-id\"${RESET}"
     echo ""
-    echo "  2. Review and customize your configuration:"
+    echo "  3. Review and customize:"
     echo "     ${BLUE}config/dev.yaml${RESET}"
+    echo "     ${BLUE}README.md${RESET}"
     echo ""
-    echo "  3. Start the application:"
+    echo "  4. Start developing:"
     echo "     ${BLUE}./scripts/run.sh${RESET}              # Start mode (dev)"
     echo "     ${BLUE}./scripts/run.sh batch${RESET}        # Batch mode (dev)"
-    echo "     ${BLUE}./scripts/run.sh start prod${RESET}   # Start mode (prod)"
-    echo ""
-    echo "  4. Run tests:"
-    echo "     ${BLUE}uv run pytest${RESET}"
-    echo ""
-    echo "${BOLD}Documentation:${RESET}"
-    echo "  README.md - Project overview and usage"
-    echo "  docs/     - Additional documentation"
     echo ""
 }
 

@@ -448,6 +448,70 @@ run_tests_optional() {
     return 0
 }
 
+setup_telegram_optional() {
+    echo ""
+    echo "${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo "${BOLD}Telegram Bot Setup (Optional)${RESET}"
+    echo "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo ""
+    print_info "To get BOT_TOKEN: Message @BotFather on Telegram -> /newbot"
+    echo ""
+    read -p "Enter your TELEGRAM_BOT_TOKEN (or press Enter to skip): " bot_token
+
+    if [ -z "$bot_token" ]; then
+        print_info "Skipping Telegram setup"
+        return 0
+    fi
+
+    echo ""
+    print_info "Fetching chat IDs from Telegram API..."
+
+    local api_url="https://api.telegram.org/bot${bot_token}/getUpdates"
+    local response=$(curl -s "$api_url")
+
+    # Check if API call was successful
+    if echo "$response" | grep -q '"ok":true'; then
+        echo ""
+        print_success "Successfully connected to Telegram API!"
+        echo ""
+        echo "${BOLD}Available Chat IDs:${RESET}"
+        echo "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+
+        # Parse and display chat IDs
+        if command -v jq &> /dev/null; then
+            # Use jq for better JSON parsing
+            echo "$response" | jq -r '.result[]? | select(.message.chat) | .message.chat | "  Chat ID: \(.id)\n  Name: \(.first_name) \(.last_name // "")\n  Username: @\(.username // "N/A")\n"'
+        else
+            # Fallback: simple grep extraction
+            local chat_ids=$(echo "$response" | grep -o '"chat":{"id":[0-9]*' | grep -o '[0-9]*' | sort -u)
+            if [ -n "$chat_ids" ]; then
+                echo "$chat_ids" | while read -r chat_id; do
+                    echo "  ${GREEN}Chat ID: $chat_id${RESET}"
+                done
+                echo ""
+            else
+                print_warning "No chat messages found"
+                print_info "Send a message to your bot first, then try again"
+            fi
+        fi
+
+        echo "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+        echo ""
+        print_info "Add these to your shell profile or .env file:"
+        echo ""
+        echo "  ${BLUE}export TELEGRAM_BOT_TOKEN=\"$bot_token\"${RESET}"
+        echo "  ${BLUE}export TELEGRAM_CHAT_ID=\"<your-chat-id-from-above>\"${RESET}"
+        echo ""
+    else
+        print_error "Failed to connect to Telegram API"
+        print_info "Please check your BOT_TOKEN and try again"
+        echo ""
+        echo "Response: $response"
+    fi
+
+    return 0
+}
+
 # ============================================================================
 # Section 4: Main Function
 # ============================================================================
@@ -552,6 +616,9 @@ main() {
     setup_config || exit 1
     setup_dirs || exit 1
     install_hooks
+
+    # Optional Telegram setup
+    setup_telegram_optional
 
     # Optional tests
     run_tests_optional

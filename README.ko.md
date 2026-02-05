@@ -17,6 +17,7 @@
 
 ### 1. 초기 설정
 
+**Linux/macOS:**
 ```bash
 # 원커맨드 설정 (권장)
 ./scripts/create_app.sh
@@ -24,6 +25,16 @@
 # 옵션과 함께 설정
 ./scripts/create_app.sh --skip-tests  # 초기 테스트 건너뛰기
 ./scripts/create_app.sh --no-hooks    # pre-commit 훅 건너뛰기
+```
+
+**Windows (PowerShell):**
+```powershell
+# 원커맨드 설정 (권장)
+.\scripts\create_app.ps1
+
+# 옵션과 함께 설정
+.\scripts\create_app.ps1 -SkipTests   # 초기 테스트 건너뛰기
+.\scripts\create_app.ps1 -NoHooks     # pre-commit 훅 건너뛰기
 ```
 
 이 명령은 다음을 수행합니다:
@@ -36,13 +47,24 @@
 
 ### 2. 애플리케이션 실행
 
+**Linux/macOS:**
 ```bash
 # 빠른 실행 스크립트 (권장)
 ./scripts/run.sh              # 시작 모드, 개발 환경
 ./scripts/run.sh batch        # 배치 모드, 개발 환경
 ./scripts/run.sh start prod   # 시작 모드, 운영 환경
+```
 
-# 또는 uv를 직접 사용
+**Windows (PowerShell):**
+```powershell
+# 빠른 실행 스크립트 (권장)
+.\scripts\run.ps1              # 시작 모드, 개발 환경
+.\scripts\run.ps1 batch        # 배치 모드, 개발 환경
+.\scripts\run.ps1 start prod   # 시작 모드, 운영 환경
+```
+
+**또는 uv를 직접 사용 (모든 플랫폼):**
+```bash
 uv run python -m src.main start --env dev
 uv run python -m src.main batch --env dev
 ```
@@ -77,8 +99,10 @@ src/
     └── ...
 
 scripts/                 # 자동화 스크립트
-├── create_app.sh        # 초기 설정 스크립트
-└── run.sh               # 빠른 실행 래퍼
+├── create_app.sh        # 초기 설정 스크립트 (Linux/macOS)
+├── create_app.ps1       # 초기 설정 스크립트 (Windows)
+├── run.sh               # 빠른 실행 래퍼 (Linux/macOS)
+└── run.ps1              # 빠른 실행 래퍼 (Windows)
 
 tests/                   # 테스트 스위트
 config/                  # 설정 파일
@@ -97,9 +121,17 @@ docs/                    # 문서
 2. 설정을 반영하여 `config/dev.yaml` 편집
 
 3. 시크릿 정보를 위한 환경 변수 설정:
+
+   **Linux/macOS:**
    ```bash
    export TELEGRAM_BOT_TOKEN="your-token"
    export TELEGRAM_CHAT_ID="your-chat-id"
+   ```
+
+   **Windows (PowerShell):**
+   ```powershell
+   $env:TELEGRAM_BOT_TOKEN="your-token"
+   $env:TELEGRAM_CHAT_ID="your-chat-id"
    ```
 
 4. 운영 환경을 위해 `config/prod.yaml` 생성:
@@ -110,13 +142,20 @@ docs/                    # 문서
 
 ## 스크립트
 
-### `scripts/create_app.sh`
+### 설정 스크립트
 
 초기 설정 스크립트 - 템플릿을 클론한 후 한 번만 실행하세요.
 
+**Linux/macOS (`scripts/create_app.sh`):**
 ```bash
 ./scripts/create_app.sh           # 전체 설정
 ./scripts/create_app.sh --help    # 옵션 보기
+```
+
+**Windows (`scripts/create_app.ps1`):**
+```powershell
+.\scripts\create_app.ps1          # 전체 설정
+.\scripts\create_app.ps1 -Help    # 옵션 보기
 ```
 
 **기능:**
@@ -127,21 +166,30 @@ docs/                    # 문서
 - pre-commit 훅 설치
 - 초기 테스트 실행 (선택사항)
 
-### `scripts/run.sh`
+### 실행 스크립트
 
 빠른 실행 래퍼 - 간편한 앱 실행 도구입니다.
 
+**Linux/macOS (`scripts/run.sh`):**
 ```bash
 ./scripts/run.sh [MODE] [ENV]
 ./scripts/run.sh --help           # 사용법 보기
-```
 
-**예시:**
-```bash
+# 예시:
 ./scripts/run.sh                  # 시작 모드, 개발 환경
 ./scripts/run.sh batch            # 배치 모드, 개발 환경
 ./scripts/run.sh start prod       # 시작 모드, 운영 환경
-./scripts/run.sh batch prod       # 배치 모드, 운영 환경
+```
+
+**Windows (`scripts/run.ps1`):**
+```powershell
+.\scripts\run.ps1 [MODE] [ENV]
+.\scripts\run.ps1 -Help           # 사용법 보기
+
+# 예시:
+.\scripts\run.ps1                 # 시작 모드, 개발 환경
+.\scripts\run.ps1 batch           # 배치 모드, 개발 환경
+.\scripts\run.ps1 start prod      # 시작 모드, 운영 환경
 ```
 
 **기능:**

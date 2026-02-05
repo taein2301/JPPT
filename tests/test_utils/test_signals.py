@@ -2,6 +2,7 @@ import signal
 from unittest.mock import patch
 
 import pytest
+
 from src.utils.signals import GracefulShutdown, setup_signal_handlers
 
 

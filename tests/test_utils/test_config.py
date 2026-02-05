@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
 from src.utils.config import Settings, load_config
 from src.utils.exceptions import ConfigurationError
 

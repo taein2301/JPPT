@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
 from src.utils.app_runner import run_app
 from src.utils.config import Settings
 

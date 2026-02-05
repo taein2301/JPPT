@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from loguru import logger
+
 from src.utils.logger import setup_logger
 
 

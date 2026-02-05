@@ -11,7 +11,7 @@ async def test_run_app_shutdown() -> None:
     settings = Settings()
 
     # Mock the shutdown to exit immediately
-    with patch("utils.app_runner.GracefulShutdown") as mock_shutdown_class:
+    with patch("src.utils.app_runner.GracefulShutdown") as mock_shutdown_class:
         mock_shutdown = AsyncMock()
         mock_shutdown.should_exit = True  # Exit immediately
         mock_shutdown.__aenter__.return_value = mock_shutdown

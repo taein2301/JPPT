@@ -3,8 +3,9 @@
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
-from main import app
 from typer.testing import CliRunner
+
+from src.main import app
 
 runner = CliRunner()
 
@@ -38,9 +39,9 @@ def test_batch_command_help() -> None:
     assert "일회성" in result.stdout or "배치" in result.stdout
 
 
-@patch("main.asyncio.run")
-@patch("main.setup_logger")
-@patch("main.load_config")
+@patch("src.main.asyncio.run")
+@patch("src.main.setup_logger")
+@patch("src.main.load_config")
 def test_start_command_basic(
     mock_load_config: AsyncMock,
     mock_setup_logger: AsyncMock,
@@ -61,9 +62,9 @@ def test_start_command_basic(
     mock_asyncio_run.assert_called_once()
 
 
-@patch("main.asyncio.run")
-@patch("main.setup_logger")
-@patch("main.load_config")
+@patch("src.main.asyncio.run")
+@patch("src.main.setup_logger")
+@patch("src.main.load_config")
 def test_start_command_with_verbose(
     mock_load_config: AsyncMock, mock_setup_logger: AsyncMock, mock_asyncio_run: AsyncMock
 ) -> None:
@@ -83,9 +84,9 @@ def test_start_command_with_verbose(
     assert call_kwargs["level"] == "DEBUG"
 
 
-@patch("main.asyncio.run")
-@patch("main.setup_logger")
-@patch("main.load_config")
+@patch("src.main.asyncio.run")
+@patch("src.main.setup_logger")
+@patch("src.main.load_config")
 def test_batch_command_basic(
     mock_load_config: AsyncMock, mock_setup_logger: AsyncMock, mock_asyncio_run: AsyncMock
 ) -> None:
@@ -103,9 +104,9 @@ def test_batch_command_basic(
     mock_asyncio_run.assert_called_once()
 
 
-@patch("main.asyncio.run")
-@patch("main.setup_logger")
-@patch("main.load_config")
+@patch("src.main.asyncio.run")
+@patch("src.main.setup_logger")
+@patch("src.main.load_config")
 def test_batch_command_with_custom_config(
     mock_load_config: AsyncMock,
     mock_setup_logger: AsyncMock,
@@ -129,9 +130,9 @@ def test_batch_command_with_custom_config(
     assert call_kwargs["config_dir"] == temp_config_dir
 
 
-@patch("main.asyncio.run")
-@patch("main.setup_logger")
-@patch("main.load_config")
+@patch("src.main.asyncio.run")
+@patch("src.main.setup_logger")
+@patch("src.main.load_config")
 def test_log_file_path_is_in_project_root(
     mock_load_config: AsyncMock,
     mock_setup_logger: AsyncMock,

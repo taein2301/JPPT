@@ -100,6 +100,81 @@ function Check-Uv {
     return $true
 }
 
+function Validate-AppName {
+    param([string]$AppName)
+
+    if ([string]::IsNullOrWhiteSpace($AppName)) {
+        Print-Error "App name is required"
+        Write-Host ""
+        Write-Host "Usage: .\scripts\create_app.ps1 <app-name> [OPTIONS]"
+        Write-Host "Example: .\scripts\create_app.ps1 my-awesome-app"
+        return $false
+    }
+
+    # Check valid characters (lowercase, numbers, hyphen, underscore)
+    if ($AppName -notmatch '^[a-z0-9][a-z0-9_-]*$') {
+        Print-Error "Invalid app name: '$AppName'"
+        Write-Host ""
+        Write-Host "App name must:"
+        Write-Host "  - Start with lowercase letter or number"
+        Write-Host "  - Contain only lowercase letters, numbers, hyphens, underscores"
+        Write-Host ""
+        Write-Host "Valid examples: my-app, my_app, myapp123"
+        Write-Host "Invalid examples: MyApp, -myapp, my app"
+        return $false
+    }
+
+    Print-Success "App name '$AppName' is valid"
+    return $true
+}
+
+function Check-Gh {
+    Print-Step -Current 3 -Total 7 -Message "Checking GitHub CLI installation..."
+
+    $gh = Get-Command gh -ErrorAction SilentlyContinue
+    if (-not $gh) {
+        Print-Error "GitHub CLI (gh) is not installed"
+        Write-Host ""
+        Write-Host "Install GitHub CLI:"
+        Write-Host "  Visit: https://cli.github.com/"
+        Write-Host "  Or use: winget install GitHub.cli"
+        return $false
+    }
+
+    $ghVersion = gh --version 2>&1 | Select-Object -First 1
+    Print-Success "GitHub CLI found: $ghVersion"
+
+    # Check authentication
+    $authStatus = gh auth status 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Print-Error "GitHub CLI is not authenticated"
+        Write-Host ""
+        Write-Host "Please authenticate with:"
+        Write-Host "  gh auth login"
+        Write-Host ""
+        return $false
+    }
+
+    Print-Success "GitHub CLI is authenticated"
+    return $true
+}
+
+function Check-TargetDirectory {
+    param([string]$TargetDir)
+
+    Print-Step -Current 4 -Total 7 -Message "Checking target directory..."
+
+    if (Test-Path $TargetDir) {
+        Print-Error "Directory already exists: $TargetDir"
+        Write-Host ""
+        Write-Host "Please choose a different app name or remove the existing directory."
+        return $false
+    }
+
+    Print-Success "Target directory is available: $TargetDir"
+    return $true
+}
+
 # ============================================================================
 # Section 3: Installation Functions
 # ============================================================================

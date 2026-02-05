@@ -15,35 +15,57 @@ Modern Python CLI application template with best practices built-in.
 
 ## Quick Start
 
-### 1. Initial Setup
+### Creating a New Project
 
 **Linux/macOS:**
 ```bash
-# One-command setup (recommended)
-./scripts/create_app.sh
+# Create new project from template
+./scripts/create_app.sh my-awesome-app
 
-# Or setup with options
-./scripts/create_app.sh --skip-tests  # Skip initial tests
-./scripts/create_app.sh --no-hooks    # Skip pre-commit hooks
+# Or with options
+./scripts/create_app.sh my-app --skip-tests  # Skip initial tests
+./scripts/create_app.sh my-app --no-hooks    # Skip pre-commit hooks
 ```
 
 **Windows (PowerShell):**
 ```powershell
-# One-command setup (recommended)
-.\scripts\create_app.ps1
+# Create new project from template
+.\scripts\create_app.ps1 my-awesome-app
 
-# Or setup with options
-.\scripts\create_app.ps1 -SkipTests   # Skip initial tests
-.\scripts\create_app.ps1 -NoHooks     # Skip pre-commit hooks
+# Or with options
+.\scripts\create_app.ps1 my-app -SkipTests   # Skip initial tests
+.\scripts\create_app.ps1 my-app -NoHooks     # Skip pre-commit hooks
 ```
 
 This will:
-- ✅ Verify Python 3.11+ and uv installation
+- ✅ Verify Python 3.11+, uv, and GitHub CLI installation
+- ✅ Create new project directory (../my-app)
+- ✅ Copy template with proper exclusions
+- ✅ Update project name in config files
+- ✅ Initialize git repository
+- ✅ Create private GitHub repository and push
 - ✅ Install all dependencies
-- ✅ Create configuration files
-- ✅ Set up logging directories
-- ✅ Install pre-commit hooks
+- ✅ Set up configuration files
+- ✅ Install pre-commit hooks (optional)
 - ✅ Run initial tests (optional)
+
+### Setting Up JPPT Template Itself
+
+If you want to work on the JPPT template itself (not create a new project):
+
+**Linux/macOS:**
+```bash
+cd JPPT  # Navigate to JPPT directory
+uv sync --all-extras
+cp config/dev.yaml.example config/dev.yaml
+```
+
+**Windows (PowerShell):**
+```powershell
+cd JPPT  # Navigate to JPPT directory
+uv sync --all-extras
+Copy-Item config/dev.yaml.example config/dev.yaml
+```
 
 ### 2. Run the Application
 

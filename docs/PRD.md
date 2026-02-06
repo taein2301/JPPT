@@ -36,7 +36,7 @@ JPPT JKLEE Python Project Template
 ## 3. 프로젝트 구조
 
 ```
-python-app-template/
+JPPT/
 ├── src/
 │   ├── __init__.py
 │   ├── main.py              # CLI 진입점 (Typer)
@@ -45,18 +45,20 @@ python-app-template/
 │   └── utils/               # 공통 유틸리티
 │       ├── __init__.py
 │       ├── config.py        # 설정 관리 (Pydantic)
-│       ├── logger.py        # 로깅 설정 (Loguru)
+│       ├── logger.py        # 로깅 설정 (Loguru, 날짜 기반 로테이션)
 │       ├── app_runner.py    # App 모드 실행 (상주)
 │       ├── batch_runner.py  # Batch 모드 실행 (일회성)
 │       ├── exceptions.py    # 커스텀 예외
 │       ├── retry.py         # 재시도 데코레이터
 │       ├── signals.py       # Graceful Shutdown
 │       ├── http_client.py   # HTTP 클라이언트
-│       ├── telegram.py      # Telegram 연동
-
+│       └── telegram.py      # Telegram 연동
+│
 ├── tests/                   # 테스트
 │   ├── __init__.py
 │   ├── conftest.py          # pytest fixtures
+│   ├── test_main.py         # CLI 테스트
+│   ├── test_integration.py  # 통합 테스트
 │   ├── test_core/
 │   │   └── __init__.py
 │   └── test_utils/
@@ -68,17 +70,20 @@ python-app-template/
 │   └── prod.yaml            # 운영 환경 설정 (gitignore)
 ├── logs/                    # 로그 파일 (gitignore)
 ├── docs/                    # 문서
-│   └── FRAMEWORK_GUIDE.md
+│   ├── FRAMEWORK_GUIDE.md
 │   └── PRD.md
-├── scripts/
-│   └── create_app.sh        # 신규 프로젝트 생성 스크립트
-│   └── run.sh               # 신규 프로젝트 run 스크립트 
+├── scripts/                 # 프로젝트 생성기
+│   ├── create_app.sh        # 프로젝트 생성 스크립트 (Linux/macOS)
+│   └── create_app.ps1       # 프로젝트 생성 스크립트 (Windows)
+├── run.sh                   # 실행 래퍼 (Linux/macOS)
+├── run.ps1                  # 실행 래퍼 (Windows)
 ├── .pre-commit-config.yaml  # pre-commit 설정
 ├── pyproject.toml           # 프로젝트 메타데이터
 ├── ruff.toml                # ruff 설정
 ├── .gitignore
 ├── .gitattributes           # merge 전략
-└── README.md
+├── README.md
+└── README.ko.md
 ```
 
 ---
@@ -168,10 +173,15 @@ telegram:
   chat_id: "${TELEGRAM_CHAT_ID}"
 ```
 
-#### 4.2.2 설정 클래스
-- 환경별 YAML 파일 로드 ({env}.yaml)
+#### 4.2.2 설정 로드 순서
+1. `config/default.yaml` — 기본값 및 스키마 (git 커밋)
+2. `config/{env}.yaml` — 환경별 오버라이드 (gitignore, deep merge)
+3. 환경변수 — 최종 오버라이드 (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`)
+
+#### 4.2.3 설정 클래스
 - Pydantic BaseSettings 기반 타입 검증
-- 민감 정보는 환경변수 오버라이드 지원
+- `AppConfig`, `LoggingConfig`, `TelegramConfig` 하위 모델
+- `load_config(env, config_dir)` 함수로 계층적 병합
 
 ---
 
@@ -186,9 +196,10 @@ telegram:
 | 항목 | 설정 |
 |------|------|
 | 경로 | `logs/` |
-| 파일명 | `{app_name}_{YYYYMMDD}.log` |
+| 현재 로그 | `{app_name}.log` (배치: `{app_name}_batch.log`) |
+| 로테이션 파일명 | `{app_name}_{YYYYMMDD}.log` (커스텀 namer 사용) |
 | 로테이션 | 매일 00:00 |
-| 보존 기간 | 10일 |
+| 보존 기간 | 10일 (커스텀 retention handler) |
 | 압축 | 비활성화 |
 
 ---
@@ -240,6 +251,8 @@ async def shutdown():
 - 메시지 전송 (텍스트, 마크다운)
 - 에러 알림 전송
 - 비활성화 가능 (`telegram.enabled: false`)
+- 인터랙티브 설정: `create_app.sh` 실행 시 Bot Token 입력 및 Chat ID 자동 조회
+- 설정 저장: `config/default.yaml`에 직접 저장 또는 환경변수 오버라이드
 
 #### 4.6.3 HTTP Client
 - httpx 기반 비동기 클라이언트

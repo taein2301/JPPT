@@ -107,6 +107,86 @@ uv run mypy src/
 uv run pre-commit run --all-files
 ```
 
+## Architecture
+
+### System Architecture
+
+```mermaid
+graph TB
+    subgraph CLI["🎯 CLI Layer"]
+        TYPER["main.py<br/>(Typer)"]
+    end
+
+    subgraph CONFIG["⚙️ Configuration"]
+        YAML["YAML Files<br/>(default / dev / prod)"]
+        PYDANTIC["Pydantic Settings<br/>(config.py)"]
+        ENV["Environment Variables"]
+    end
+
+    subgraph CORE["🧩 Core Layer"]
+        APP["App Runner<br/>(Long-running daemon)"]
+        BATCH["Batch Runner<br/>(One-shot execution)"]
+        BIZ["Business Logic<br/>(core/)"]
+    end
+
+    subgraph UTILS["🔧 Utilities"]
+        LOGGER["Loguru Logger"]
+        RETRY["Retry<br/>(Tenacity)"]
+        SIGNALS["Graceful Shutdown<br/>(Signal Handler)"]
+        HTTP["HTTP Client<br/>(httpx)"]
+        TELEGRAM["Telegram Notifier"]
+        EXCEPTIONS["Exception Hierarchy"]
+    end
+
+    TYPER -->|start| APP
+    TYPER -->|batch| BATCH
+    YAML --> PYDANTIC
+    ENV --> PYDANTIC
+    PYDANTIC --> TYPER
+    APP --> BIZ
+    BATCH --> BIZ
+    BIZ --> LOGGER
+    BIZ --> RETRY
+    BIZ --> HTTP
+    BIZ --> TELEGRAM
+    APP --> SIGNALS
+    HTTP --> RETRY
+    TELEGRAM --> HTTP
+    RETRY --> EXCEPTIONS
+    HTTP --> EXCEPTIONS
+```
+
+### Execution Flow
+
+```mermaid
+flowchart TD
+    START(["🚀 User runs CLI"]) --> PARSE["Parse arguments<br/>(Typer)"]
+    PARSE --> LOAD_CONFIG["Load configuration<br/>(default.yaml → env.yaml → env vars)"]
+    LOAD_CONFIG --> SETUP_LOG["Setup Loguru logger<br/>(console + file)"]
+    SETUP_LOG --> MODE{Mode?}
+
+    MODE -->|"start"| APP_INIT["Initialize GracefulShutdown<br/>Register signal handlers"]
+    APP_INIT --> APP_RESOURCES["Initialize resources<br/>(HTTP Client, Telegram, etc.)"]
+    APP_RESOURCES --> APP_LOOP["Main async loop<br/>(while not should_exit)"]
+    APP_LOOP -->|"Signal received<br/>(Ctrl+C / SIGTERM)"| CLEANUP["Run cleanup callbacks"]
+    CLEANUP --> EXIT_OK(["✅ Exit 0"])
+
+    MODE -->|"batch"| BATCH_RUN["Execute business logic<br/>(one-shot)"]
+    BATCH_RUN --> EXIT_OK
+
+    APP_LOOP -->|"Exception"| ERROR_HANDLE["Error handling<br/>+ Telegram notification"]
+    ERROR_HANDLE --> EXIT_FAIL(["❌ Exit 1"])
+    BATCH_RUN -->|"Exception"| EXIT_FAIL
+```
+
+### Configuration Loading
+
+```mermaid
+%% TODO(human): Design the configuration loading flow diagram
+%% Show the 3-layer cascade: default.yaml → env.yaml → environment variables
+%% Include priority order and which files are committed vs gitignored
+```
+
 ## Project Structure
 
 ```

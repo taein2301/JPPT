@@ -154,8 +154,8 @@ def test_log_file_path_is_in_project_root(
     call_kwargs = mock_setup_logger.call_args[1]
     log_file = call_kwargs["log_file"]
 
-    # Log file should be: PROJECT_ROOT / "logs" / "test-app.log"
+    # Log file should be: PROJECT_ROOT / "logs" / "test-app_{time:YYYYMMDD}.log"
     # PROJECT_ROOT is src/main.py의 parent.parent
     assert log_file.is_absolute(), f"Log file path should be absolute, got: {log_file}"
     assert log_file.parts[-2] == "logs", f"Log file should be in 'logs' directory, got: {log_file}"
-    assert log_file.name == "test-app.log"
+    assert log_file.name == "test-app_{time:YYYYMMDD}.log"

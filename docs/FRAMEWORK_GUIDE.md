@@ -40,19 +40,30 @@ This will:
 
 ### 2. Configure Your Application
 
-Edit `config/dev.yaml`:
+Configuration uses a layered system:
+1. `config/default.yaml` — Base values (committed, project name set by `create_app.sh`)
+2. `config/dev.yaml` — Dev overrides (gitignored, auto-created by `create_app.sh`)
+3. Environment variables — Final overrides for secrets
+
+Edit `config/dev.yaml` to override defaults:
 
 ```yaml
 app:
-  name: "my-app"  # Change this
   debug: true
 
+logging:
+  level: "DEBUG"
+
 telegram:
-  enabled: true
-  # Set these via environment variables
+  enabled: false
 ```
 
-Set secrets:
+**Telegram setup:** The `create_app.sh` script includes an interactive Telegram setup that:
+- Asks for your Bot Token (from [@BotFather](https://t.me/BotFather))
+- Auto-fetches available Chat IDs via Telegram API
+- Saves settings directly to `config/default.yaml`
+
+Alternatively, override via environment variables:
 ```bash
 export TELEGRAM_BOT_TOKEN="your-token"
 export TELEGRAM_CHAT_ID="your-chat-id"
@@ -146,13 +157,14 @@ async def test_process_data() -> None:
 ### 6. Run Your Application
 
 ```bash
-# Development mode
+# Using run scripts (recommended)
+./run.sh              # Start mode, dev environment
+./run.sh batch        # Batch mode, dev environment
+./run.sh start prod   # Start mode, prod environment
+
+# Or use uv directly
 uv run python -m src.main start --env dev --verbose
-
-# Production mode
 uv run python -m src.main start --env prod
-
-# Batch mode
 uv run python -m src.main batch --env dev
 ```
 
@@ -166,15 +178,22 @@ src/
 ├── core/                # YOUR BUSINESS LOGIC GOES HERE
 │   └── *.py
 └── utils/               # Framework utilities (modify carefully)
-    ├── config.py        # Settings management
-    ├── logger.py        # Logging setup
+    ├── config.py        # Settings management (Pydantic)
+    ├── logger.py        # Logging with date-based rotation
     ├── app_runner.py    # App mode (IMPLEMENT YOUR LOGIC)
     ├── batch_runner.py  # Batch mode (IMPLEMENT YOUR LOGIC)
-    ├── exceptions.py    # Error types
-    ├── retry.py         # Retry decorator
-    ├── signals.py       # Graceful shutdown
-    ├── http_client.py   # HTTP utilities
-    └── telegram.py      # Notifications
+    ├── exceptions.py    # Custom exception hierarchy
+    ├── retry.py         # Retry decorator (tenacity)
+    ├── signals.py       # Graceful shutdown (SIGTERM/SIGINT)
+    ├── http_client.py   # Async HTTP client (httpx)
+    └── telegram.py      # Telegram notifications
+
+scripts/
+├── create_app.sh        # Project generator (Linux/macOS)
+└── create_app.ps1       # Project generator (Windows)
+
+run.sh                   # Quick run wrapper (Linux/macOS)
+run.ps1                  # Quick run wrapper (Windows)
 ```
 
 ### What to Modify
@@ -232,6 +251,9 @@ logger.exception("Error with traceback")
 ```
 
 ### Telegram Notifications
+
+Telegram settings are configured during `create_app.sh` (interactive setup saves to `config/default.yaml`)
+or via environment variables (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`).
 
 ```python
 from src.utils.telegram import TelegramNotifier
@@ -296,9 +318,9 @@ uv run ptw tests/
 
 ### Layered Configuration
 
-1. `config/default.yaml` - Base values (committed)
+1. `config/default.yaml` - Base values and schema (committed to git)
 2. `config/{env}.yaml` - Environment overrides (gitignored)
-3. Environment variables - Secrets (never committed)
+3. Environment variables - Final overrides for secrets (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`)
 
 ### Adding New Settings
 
@@ -370,6 +392,17 @@ git commit -m "feat: add my feature"
 # Pre-commit hooks run automatically
 ```
 
+## Logging
+
+Logs are written to the `logs/` directory with automatic date-based rotation:
+
+- **Active log:** `logs/{app_name}.log` (or `{app_name}_batch.log` for batch mode)
+- **Rotated logs:** `logs/{app_name}_YYYYMMDD.log` (e.g., `myapp_20260206.log`)
+- **Rotation:** Daily at midnight (configurable via `logging.rotation`)
+- **Retention:** 10 days by default (configurable via `logging.retention`)
+
+The custom rotation handler converts Loguru's default backup format to a cleaner date-based naming.
+
 ## Deployment
 
 ### Using uv (Recommended)
@@ -380,7 +413,8 @@ uv build
 
 # Deploy and run
 uv sync --frozen
-uv run python -m src.main start --env prod
+./run.sh start prod
+# or: uv run python -m src.main start --env prod
 ```
 
 ### Using systemd (Linux)

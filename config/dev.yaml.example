@@ -4,5 +4,8 @@ app:
 logging:
   level: "DEBUG"
 
-telegram:
-  enabled: false
+# telegram 설정은 필요시 오버라이드
+# telegram:
+#   enabled: true
+#   bot_token: "YOUR_BOT_TOKEN"
+#   chat_id: "YOUR_CHAT_ID"

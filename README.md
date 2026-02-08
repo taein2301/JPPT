@@ -346,6 +346,30 @@ Quick run wrappers — simplified app execution.
 .\run.ps1 start prod      # start mode, prod env
 ```
 
+## Examples and Patterns
+
+### Core Structure Patterns
+
+Learn how to structure `src/core/` for complex applications:
+- 📚 **[Core Structure Patterns Guide](docs/examples/core-structure-patterns.md)**
+  - Data source integration pattern (multi-source, ABC interfaces)
+  - Output renderer pattern (terminal, CSV, JSON)
+  - Business logic engine pattern
+  - Pydantic model patterns
+
+### Real-World Example: KAVS
+
+**[KAVS](https://github.com/taein2301/kavs)** - Korean Automated Value Screening
+
+A production CLI tool built with JPPT that demonstrates:
+- Multi-source data integration (KRX, OpenDART APIs)
+- ABC pattern for pluggable data sources
+- Rich terminal output with tables
+- Screening engine with filtering logic
+- 80%+ test coverage
+
+Check out the [KAVS source code](https://github.com/taein2301/kavs) to see these patterns in action!
+
 ## Development
 
 Pre-commit hooks are automatically installed by `./scripts/create_app.sh`.

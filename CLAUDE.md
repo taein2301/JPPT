@@ -205,10 +205,34 @@ Three hooks run automatically on commit:
 ## Where to Add New Code
 
 - **Business logic:** `src/core/` — this is the intended extension point
+  - See `docs/examples/core-structure-patterns.md` for recommended patterns:
+    - **Data source pattern**: `src/core/data/` with ABC interfaces
+    - **Renderer pattern**: `src/core/output/` for different output formats
+    - **Engine pattern**: Main processing logic with aggregators
+    - **Model pattern**: Pydantic models in `src/core/models.py`
 - **New utility:** `src/utils/` — for reusable infrastructure components
 - **New CLI command:** `src/main.py` — add a new `@app.command()` function
 - **New config section:** Add a Pydantic `BaseModel` in `src/utils/config.py`, then add the field to `Settings`
 - **New tests:** Mirror the source path under `tests/`
+
+### Recommended `src/core/` Structure
+
+For complex applications, organize `src/core/` with these patterns:
+
+```
+src/core/
+├── models.py            # Pydantic data models
+├── engine.py            # Main business logic
+├── data/                # Data source integration
+│   ├── base.py          # ABC interfaces
+│   ├── source_a.py      # Source implementations
+│   └── aggregator.py    # Multi-source integration
+└── output/              # Output renderers
+    ├── terminal_renderer.py
+    └── csv_renderer.py
+```
+
+See the [KAVS project](https://github.com/taein2301/kavs) for a real-world example of these patterns in action.
 
 ## Common Pitfalls
 

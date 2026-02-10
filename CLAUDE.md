@@ -187,7 +187,7 @@ uv run pytest -k "test_version"        # By name pattern
 
 ### Ignored Files (do NOT commit)
 - `config/dev.yaml`, `config/prod.yaml` — environment-specific secrets
-- `logs/`, `*.log` — runtime logs
+- `logs/`, `*.log` — legacy/local logs (runtime logs are in `$HOME/logs/`)
 - `.venv/`, `__pycache__/`, `.pytest_cache/`
 
 ### Merge Strategy (.gitattributes)

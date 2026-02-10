@@ -394,14 +394,16 @@ git commit -m "feat: add my feature"
 
 ## Logging
 
-Logs are written to the `logs/` directory with automatic date-based rotation:
+Logs are written to the `$HOME/logs/` directory (user's home directory) with automatic date-based rotation:
 
-- **Active log:** `logs/{app_name}.log` (or `{app_name}_batch.log` for batch mode)
-- **Rotated logs:** `logs/{app_name}_YYYYMMDD.log` (e.g., `myapp_20260206.log`)
+- **Active log:** `$HOME/logs/{app_name}.log` (or `{app_name}_batch.log` for batch mode)
+- **Rotated logs:** `$HOME/logs/{app_name}_YYYYMMDD.log` (e.g., `myapp_20260206.log`)
 - **Rotation:** Daily at midnight (configurable via `logging.rotation`)
 - **Retention:** 10 days by default (configurable via `logging.retention`)
 
 The custom rotation handler converts Loguru's default backup format to a cleaner date-based naming.
+
+**Note:** Logs are stored in your home directory (`~/logs/`) to keep the project directory clean and centralize logs across multiple projects.
 
 ## Deployment
 

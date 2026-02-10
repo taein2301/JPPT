@@ -7,9 +7,9 @@
 import os
 import re
 import sys
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Callable
 
 from loguru import logger
 
@@ -121,6 +121,9 @@ def setup_logger(
     )
 
     # 파일 핸들러 추가 (지정된 경우)
+    if log_file is None:
+        log_file = Path.home() / "logs" / "app.log"
+
     if log_file:
         # 로그 디렉토리가 없으면 생성
         log_file.parent.mkdir(parents=True, exist_ok=True)

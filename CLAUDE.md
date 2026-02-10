@@ -87,13 +87,14 @@ JPPT/
 
 ## Architecture & Key Patterns
 
-### Layered Configuration
-Config loading follows a 3-layer cascade with deep merge:
-1. `config/default.yaml` — base values (always required)
-2. `config/{env}.yaml` — environment overrides (optional, gitignored for dev/prod)
-3. Environment variables — final overrides (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`)
+### Configuration System
+Each environment has its own complete configuration file:
+- `config/dev.yaml` — development environment config (gitignored)
+- `config/prod.yaml` — production environment config (gitignored)
+- `config/{env}.yaml.example` — template files (committed)
 
 All config is validated through Pydantic models in `src/utils/config.py`.
+Use `--env` flag to select which config to load (defaults to `dev`).
 
 ### Execution Modes
 - **Start (daemon):** `src/utils/app_runner.py` — async loop with `GracefulShutdown` context manager. Runs until SIGTERM/SIGINT.

@@ -1,11 +1,15 @@
 app:
+  name: "jppt"
+  version: "0.1.0"
   debug: true
 
 logging:
   level: "DEBUG"
+  format: "[{time:YYYY-MM-DD HH:mm:ss}][{level}]{message} [{file.name}:{line}]"
+  rotation: "00:00"
+  retention: "10 days"
 
-# telegram 설정은 필요시 오버라이드
-# telegram:
-#   enabled: true
-#   bot_token: "YOUR_BOT_TOKEN"
-#   chat_id: "YOUR_CHAT_ID"
+telegram:
+  enabled: false
+  bot_token: ""
+  chat_id: ""

@@ -4,7 +4,6 @@
 기본 설정(default.yaml)과 환경별 설정(dev.yaml, prod.yaml)을 병합하여 사용합니다.
 """
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -50,7 +49,7 @@ class TelegramConfig(BaseModel):
 
     Attributes:
         enabled: 텔레그램 알림 활성화 여부
-        bot_token: 텔레그램 봇 토큰 (환경변수에서 로드 권장)
+        bot_token: 텔레그램 봇 토큰
         chat_id: 텔레그램 채팅방 ID
     """
 
@@ -76,8 +75,7 @@ class Settings(BaseSettings):
 def load_config(env: str = "dev", config_dir: Path | None = None) -> Settings:
     """YAML 파일에서 설정을 로드합니다.
 
-    default.yaml과 {env}.yaml을 병합하여 최종 설정을 생성합니다.
-    환경별 설정이 기본 설정을 오버라이드합니다.
+    환경별 설정 파일({env}.yaml)을 로드합니다.
 
     Args:
         env: 환경 이름 (dev, prod 등)
@@ -94,31 +92,15 @@ def load_config(env: str = "dev", config_dir: Path | None = None) -> Settings:
     if config_dir is None:
         config_dir = Path(__file__).parent.parent.parent / "config"
 
-    default_file = config_dir / "default.yaml"
-    env_file = config_dir / f"{env}.yaml"
+    config_file = config_dir / f"{env}.yaml"
 
-    if not default_file.exists():
-        raise ConfigurationError(f"Default config not found: {default_file}")
+    if not config_file.exists():
+        raise ConfigurationError(
+            f"Config file not found: {config_file}\n"
+            f"Please create {env}.yaml from {env}.yaml.example template"
+        )
 
-    # Load default config
-    with open(default_file) as f:
-        default_data: dict[str, Any] = yaml.safe_load(f) or {}
+    with open(config_file) as f:
+        config_data: dict[str, Any] = yaml.safe_load(f) or {}
 
-    # Merge with environment-specific config if exists
-    if env_file.exists():
-        with open(env_file) as f:
-            env_data: dict[str, Any] = yaml.safe_load(f) or {}
-            # Deep merge
-            for key, value in env_data.items():
-                if key in default_data and isinstance(default_data[key], dict):
-                    default_data[key].update(value)
-                else:
-                    default_data[key] = value
-
-    # Override with environment variables
-    if bot_token := os.getenv("TELEGRAM_BOT_TOKEN"):
-        default_data.setdefault("telegram", {})["bot_token"] = bot_token
-    if chat_id := os.getenv("TELEGRAM_CHAT_ID"):
-        default_data.setdefault("telegram", {})["chat_id"] = chat_id
-
-    return Settings(**default_data)
+    return Settings(**config_data)

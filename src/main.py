@@ -70,7 +70,7 @@ def start(
     if verbose:
         log_level = "DEBUG"
 
-    log_file = PROJECT_ROOT / "logs" / f"{settings.app.name}.log"
+    log_file = Path.home() / "logs" / f"{settings.app.name}.log"
     setup_logger(
         level=log_level,
         log_file=log_file,
@@ -112,7 +112,7 @@ def batch(
     if verbose:
         log_level = "DEBUG"
 
-    log_file = PROJECT_ROOT / "logs" / f"{settings.app.name}_batch.log"
+    log_file = Path.home() / "logs" / f"{settings.app.name}_batch.log"
     setup_logger(
         level=log_level,
         log_file=log_file,

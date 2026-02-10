@@ -134,12 +134,14 @@ def test_batch_command_with_custom_config(
 @patch("src.main.asyncio.run")
 @patch("src.main.setup_logger")
 @patch("src.main.load_config")
-def test_log_file_path_is_in_project_root(
+def test_log_file_path_is_in_home_directory(
     mock_load_config: AsyncMock,
     mock_setup_logger: AsyncMock,
     mock_asyncio_run: AsyncMock,
 ) -> None:
-    """Test that log file path is relative to project root, not cwd."""
+    """Test that log file path is in user's home directory ($HOME/logs)."""
+    from pathlib import Path
+
     from src.utils.config import Settings
 
     mock_load_config.return_value = Settings(
@@ -151,12 +153,12 @@ def test_log_file_path_is_in_project_root(
     result = runner.invoke(app, ["start"])
     assert result.exit_code == 0
 
-    # Verify setup_logger was called with absolute path to project root/logs
+    # Verify setup_logger was called with path to $HOME/logs
     call_kwargs = mock_setup_logger.call_args[1]
     log_file = call_kwargs["log_file"]
 
-    # Log file should be: PROJECT_ROOT / "logs" / "test-app.log"
-    # PROJECT_ROOT is src/main.py의 parent.parent
+    # Log file should be: $HOME / "logs" / "test-app.log"
+    home_logs = Path.home() / "logs"
     assert log_file.is_absolute(), f"Log file path should be absolute, got: {log_file}"
-    assert log_file.parts[-2] == "logs", f"Log file should be in 'logs' directory, got: {log_file}"
+    assert log_file.parent == home_logs, f"Log file should be in $HOME/logs, got: {log_file.parent}"
     assert log_file.name == "test-app.log"

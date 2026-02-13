@@ -14,8 +14,6 @@ from src.utils.config import load_config
 from src.utils.logger import setup_logger
 
 # 프로젝트 루트 디렉토리 (src/의 부모 디렉토리)
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-
 app = typer.Typer(
     name="jppt",
     help="JKLEE Python Project Template",
@@ -128,6 +126,59 @@ def batch(
     from src.utils.batch_runner import run_batch
 
     asyncio.run(run_batch(settings))
+
+
+@app.command()
+def api(
+    env: str = typer.Option("dev", "--env", "-e", help="Environment (dev/prod)"),
+    config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    host: str = typer.Option(
+        "0.0.0.0",
+        "--host",
+        help="Bind host for API server",
+    ),
+    port: int = typer.Option(
+        8000,
+        "--port",
+        "-p",
+        help="Port for API server",
+    ),
+    reload: bool = typer.Option(False, "--reload", help="Enable auto reload (dev only)"),
+    log_level: str = typer.Option("INFO", "--log-level", "-l", help="Log level"),
+    verbose: bool = typer.Option(False, "--verbose", help="Verbose output"),
+) -> None:
+    """API 서버로 실행합니다.
+
+    FastAPI 기반 REST API를 실행합니다.
+    """
+    # 설정 로드 (커스텀 경로 또는 기본 경로)
+    if config:
+        config_dir = Path(config).parent
+        settings = load_config(env=env, config_dir=config_dir)
+    else:
+        settings = load_config(env=env)
+
+    # 로깅 설정 (verbose 모드면 DEBUG 레벨로 변경)
+    if verbose:
+        log_level = "DEBUG"
+
+    log_file = Path.home() / "logs" / f"{settings.app.name}_api.log"
+    setup_logger(
+        level=log_level,
+        log_file=log_file,
+        format_str=settings.logging.format,
+        rotation=settings.logging.rotation,
+        retention=settings.logging.retention,
+    )
+
+    logger.info(f"Starting {settings.app.name} in API mode")
+    logger.info(f"API host: {host}:{port}")
+    logger.info(f"Environment: {env}")
+
+    # API 실행 (동기 실행)
+    from src.utils.api_runner import run_api_server
+
+    run_api_server(settings, host=host, port=port, reload=reload)
 
 
 if __name__ == "__main__":

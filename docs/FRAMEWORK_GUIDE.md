@@ -161,11 +161,13 @@ async def test_process_data() -> None:
 ./run.sh              # Start mode, dev environment
 ./run.sh batch        # Batch mode, dev environment
 ./run.sh start prod   # Start mode, prod environment
+./run.sh api          # API mode, dev environment
 
 # Or use uv directly
 uv run python -m src.main start --env dev --verbose
 uv run python -m src.main start --env prod
 uv run python -m src.main batch --env dev
+uv run python -m src.main api --env dev --port 8000
 ```
 
 ## Architecture Overview
@@ -177,6 +179,8 @@ src/
 ├── main.py              # CLI entry point (DON'T MODIFY MUCH)
 ├── core/                # YOUR BUSINESS LOGIC GOES HERE
 │   └── *.py
+├── api/                 # FastAPI application layer
+│   └── app.py           # FastAPI app factory
 └── utils/               # Framework utilities (modify carefully)
     ├── config.py        # Settings management (Pydantic)
     ├── logger.py        # Logging with date-based rotation
@@ -186,7 +190,8 @@ src/
     ├── retry.py         # Retry decorator (tenacity)
     ├── signals.py       # Graceful shutdown (SIGTERM/SIGINT)
     ├── http_client.py   # Async HTTP client (httpx)
-    └── telegram.py      # Telegram notifications
+    ├── telegram.py      # Telegram notifications
+    └── api_runner.py    # API mode server runner
 
 scripts/
 ├── create_app.sh        # Project generator (Linux/macOS)

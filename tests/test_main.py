@@ -162,3 +162,32 @@ def test_log_file_path_is_in_home_directory(
     assert log_file.is_absolute(), f"Log file path should be absolute, got: {log_file}"
     assert log_file.parent == home_logs, f"Log file should be in $HOME/logs, got: {log_file.parent}"
     assert log_file.name == "test-app.log"
+
+
+@patch("src.main.setup_logger")
+@patch("src.main.load_config")
+def test_api_command_help(mock_load_config: AsyncMock, mock_setup_logger: AsyncMock) -> None:
+    result = runner.invoke(app, ["api", "--help"])
+    assert result.exit_code == 0
+    assert "API" in result.stdout or "api" in result.stdout
+
+
+@patch("src.main.load_config")
+@patch("src.main.setup_logger")
+@patch("src.utils.api_runner.run_api_server")
+def test_api_command_basic(
+    mock_run_api_server, mock_setup_logger: AsyncMock, mock_load_config: AsyncMock
+) -> None:
+    from src.utils.config import Settings
+
+    mock_load_config.return_value = Settings(
+        app={"name": "test-app", "version": "0.1.0", "debug": True},
+        logging={"level": "INFO"},
+        telegram={"enabled": False},
+    )
+
+    result = runner.invoke(app, ["api", "--port", "9001"])
+
+    assert result.exit_code == 0
+    mock_run_api_server.assert_called_once()
+    assert mock_run_api_server.call_args.kwargs["port"] == 9001

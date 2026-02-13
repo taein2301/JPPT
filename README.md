@@ -93,6 +93,16 @@ Copy-Item config/dev.yaml.example config/dev.yaml
 ```bash
 uv run python -m src.main start --env dev
 uv run python -m src.main batch --env dev
+uv run python -m src.main api --env dev --port 8000
+```
+
+### API 사용
+
+```bash
+curl http://localhost:8000/health
+curl -X POST http://localhost:8000/jobs \
+  -H "Content-Type: application/json" \
+  -d '{"name": "sample", "payload": {"foo": "bar"}}'
 ```
 
 ### Development Commands
@@ -197,6 +207,8 @@ flowchart TD
 src/
 ├── main.py              # CLI entry point
 ├── core/                # Business logic
+├── api/                 # FastAPI application layer
+│   └── app.py           # FastAPI app factory
 └── utils/               # Reusable utilities
     ├── config.py        # Settings management (Pydantic)
     ├── logger.py        # Logging setup (Loguru)

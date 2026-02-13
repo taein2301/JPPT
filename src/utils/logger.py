@@ -7,11 +7,41 @@
 import os
 import re
 import sys
+import tempfile
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from loguru import logger
+
+
+def _resolve_log_file_path(log_file: Path) -> Path:
+    """로그 파일 경로가 쓰기 가능한지 확인하고, 불가하면 임시 경로로 보완합니다."""
+
+    primary = log_file
+    fallback = Path(tempfile.gettempdir()) / "jppt_logs" / log_file.name
+
+    def _can_write(path: Path) -> bool:
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(
+                mode="a",
+                dir=str(path.parent),
+                prefix=f".{path.name}.",
+                suffix=".probe",
+                delete=True,
+            ):
+                pass
+            return True
+        except OSError:
+            return False
+
+    if _can_write(primary):
+        return primary
+    if _can_write(fallback):
+        return fallback
+
+    return fallback
 
 
 def _log_namer(filepath: str) -> str:
@@ -125,17 +155,30 @@ def setup_logger(
         log_file = Path.home() / "logs" / "app.log"
 
     if log_file:
-        # 로그 디렉토리가 없으면 생성
-        log_file.parent.mkdir(parents=True, exist_ok=True)
-        logger.add(
-            log_file,
-            format=format_str,
-            level=level,
-            rotation=rotation,
-            retention=_make_retention_handler(retention, log_file),
-            compression=None,
-            backtrace=True,
-            diagnose=True,
-        )
+        resolved_log_file = _resolve_log_file_path(log_file)
+        if resolved_log_file != log_file:
+            logger.warning(
+                "Could not write to %s. Falling back to %s",
+                log_file,
+                resolved_log_file,
+            )
+            log_file = resolved_log_file
+
+        try:
+            logger.add(
+                log_file,
+                format=format_str,
+                level=level,
+                rotation=rotation,
+                retention=_make_retention_handler(retention, log_file),
+                compression=None,
+                backtrace=True,
+                diagnose=True,
+            )
+        except OSError as exc:
+            logger.warning(
+                "Failed to configure file logger (%s). Continuing with console only.",
+                exc,
+            )
 
     logger.info(f"Logger initialized: level={level}, file={log_file}")

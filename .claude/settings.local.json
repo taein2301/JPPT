@@ -12,7 +12,12 @@
       "Bash(chmod:*)",
       "Bash(./scripts/create_app.sh:*)",
       "Bash(./scripts/run.sh:*)",
-      "mcp__sequential-thinking__sequentialthinking"
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(if [ -f config/dev.yaml ])",
+      "Bash(then cat config/dev.yaml)",
+      "Bash(else echo \"dev.yaml not found\")",
+      "Bash(fi)",
+      "Bash(python3:*)"
     ]
   },
   "outputStyle": "Learning"

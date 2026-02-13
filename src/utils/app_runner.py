@@ -48,9 +48,7 @@ async def run_app(settings: Settings) -> None:
 
     # 시작 알림 전송
     await notifier.send_message(
-        f"🚀 **{settings.app.name}** started\n"
-        f"Version: {settings.app.version}\n"
-        f"Mode: App (daemon)"
+        f"🚀 **{settings.app.name}** started\nVersion: {settings.app.version}\nMode: App (daemon)"
     )
 
     # Graceful shutdown 설정

@@ -38,7 +38,7 @@ async def run_batch(settings: Settings) -> None:
 
     # 시작 알림 전송
     await notifier.send_message(
-        f"▶️ **{settings.app.name}** batch started\n" f"Version: {settings.app.version}"
+        f"▶️ **{settings.app.name}** batch started\nVersion: {settings.app.version}"
     )
 
     try:

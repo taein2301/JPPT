@@ -3,8 +3,9 @@
 from pathlib import Path
 
 import pytest
-from main import app
 from typer.testing import CliRunner
+
+from main import app
 
 runner = CliRunner()
 

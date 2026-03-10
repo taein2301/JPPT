@@ -1,6 +1,7 @@
 """Integration tests for the full application."""
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -12,13 +13,16 @@ runner = CliRunner()
 
 def test_full_cli_integration(temp_config_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test full CLI workflow with config."""
-    # Set environment variables
-    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
-    monkeypatch.setenv("TELEGRAM_CHAT_ID", "12345")
+    _ = (temp_config_dir, monkeypatch)
 
-    # Test version
-    result = runner.invoke(app, ["--version"])
-    assert result.exit_code == 0
+    from src.utils.config import Settings
+
+    with patch("main.load_config") as mock_load_config:
+        mock_load_config.return_value = Settings(
+            app={"name": "test-app", "version": "0.1.0", "debug": False}
+        )
+        result = runner.invoke(app, ["--version"])
+        assert result.exit_code == 0
 
     # Test help
     result = runner.invoke(app, ["--help"])
@@ -40,6 +44,7 @@ async def test_config_logger_integration(temp_config_dir: Path) -> None:
         level=config.logging.level,
         log_file=log_file,
         format_str=config.logging.format,
+        json_logs=config.logging.json_logs,
     )
 
     from loguru import logger

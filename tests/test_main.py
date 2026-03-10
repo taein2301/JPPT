@@ -12,10 +12,17 @@ runner = CliRunner()
 
 def test_cli_version() -> None:
     """Test --version flag."""
-    result = runner.invoke(app, ["--version"])
+    from src.utils.config import Settings
+
+    with patch("src.main.load_config") as mock_load_config:
+        mock_load_config.return_value = Settings(
+            app={"name": "test-app", "version": "0.1.0", "debug": False}
+        )
+        result = runner.invoke(app, ["--version"])
+
     assert result.exit_code == 0
-    # Version output should contain "version" and app name from config
     assert "version" in result.stdout.lower()
+    assert "test-app" in result.stdout
 
 
 def test_cli_help() -> None:
@@ -54,13 +61,20 @@ def test_start_command_basic(
 
     mock_load_config.return_value = Settings(
         app={"name": "test-app", "version": "0.1.0", "debug": True},
-        logging={"level": "DEBUG"},
+        logging={"level": "DEBUG", "json_logs": False},
         telegram={"enabled": False},
     )
 
-    result = runner.invoke(app, ["start", "--env", "dev"])
+    with patch("src.main.logger.info") as mock_logger_info:
+        result = runner.invoke(app, ["start", "--env", "dev"])
+
     assert result.exit_code == 0
     mock_asyncio_run.assert_called_once()
+    call_kwargs = mock_setup_logger.call_args[1]
+    assert call_kwargs["json_logs"] is False
+    assert any(
+        "Loaded config summary" in str(call.args[0]) for call in mock_logger_info.call_args_list
+    )
 
 
 @patch("src.main.asyncio.run")
@@ -69,7 +83,7 @@ def test_start_command_basic(
 def test_start_command_with_verbose(
     mock_load_config: AsyncMock, mock_setup_logger: AsyncMock, mock_asyncio_run: AsyncMock
 ) -> None:
-    """Test start command with verbose flag."""
+    """verbose flag should force DEBUG logging."""
     from src.utils.config import Settings
 
     mock_load_config.return_value = Settings(
@@ -88,6 +102,27 @@ def test_start_command_with_verbose(
 @patch("src.main.asyncio.run")
 @patch("src.main.setup_logger")
 @patch("src.main.load_config")
+def test_start_command_uses_cli_log_level_override(
+    mock_load_config: AsyncMock, mock_setup_logger: AsyncMock, mock_asyncio_run: AsyncMock
+) -> None:
+    """--log-level should override the configured logging level."""
+    from src.utils.config import Settings
+
+    mock_load_config.return_value = Settings(
+        app={"name": "test-app", "version": "0.1.0", "debug": True},
+        logging={"level": "DEBUG"},
+        telegram={"enabled": False},
+    )
+
+    result = runner.invoke(app, ["start", "--log-level", "ERROR"])
+    assert result.exit_code == 0
+    call_kwargs = mock_setup_logger.call_args[1]
+    assert call_kwargs["level"] == "ERROR"
+
+
+@patch("src.main.asyncio.run")
+@patch("src.main.setup_logger")
+@patch("src.main.load_config")
 def test_batch_command_basic(
     mock_load_config: AsyncMock, mock_setup_logger: AsyncMock, mock_asyncio_run: AsyncMock
 ) -> None:
@@ -96,7 +131,7 @@ def test_batch_command_basic(
 
     mock_load_config.return_value = Settings(
         app={"name": "test-app", "version": "0.1.0", "debug": True},
-        logging={"level": "DEBUG"},
+        logging={"level": "DEBUG", "json_logs": False},
         telegram={"enabled": False},
     )
 
@@ -119,7 +154,7 @@ def test_batch_command_with_custom_config(
 
     mock_load_config.return_value = Settings(
         app={"name": "test-app", "version": "0.1.0", "debug": True},
-        logging={"level": "DEBUG"},
+        logging={"level": "DEBUG", "json_logs": False},
         telegram={"enabled": False},
     )
 
@@ -146,7 +181,7 @@ def test_log_file_path_is_in_home_directory(
 
     mock_load_config.return_value = Settings(
         app={"name": "test-app", "version": "0.1.0", "debug": True},
-        logging={"level": "INFO"},
+        logging={"level": "INFO", "json_logs": False},
         telegram={"enabled": False},
     )
 
@@ -182,7 +217,7 @@ def test_api_command_basic(
 
     mock_load_config.return_value = Settings(
         app={"name": "test-app", "version": "0.1.0", "debug": True},
-        logging={"level": "INFO"},
+        logging={"level": "INFO", "json_logs": False},
         telegram={"enabled": False},
     )
 

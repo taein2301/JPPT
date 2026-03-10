@@ -5,6 +5,7 @@
 
 from loguru import logger
 from telegram import Bot
+from telegram.error import TimedOut
 
 
 class TelegramNotifier:
@@ -40,7 +41,7 @@ class TelegramNotifier:
         self,
         message: str,
         parse_mode: str = "Markdown",
-    ) -> None:
+    ) -> bool:
         """텔레그램으로 메시지를 전송합니다.
 
         Args:
@@ -53,7 +54,7 @@ class TelegramNotifier:
         """
         if not self.enabled or not self._bot:
             logger.debug("Telegram notification skipped (disabled)")
-            return
+            return False
 
         try:
             await self._bot.send_message(
@@ -62,11 +63,19 @@ class TelegramNotifier:
                 parse_mode=parse_mode,
             )
             logger.info(f"Telegram message sent to {self.chat_id}")
+            return True
+        except TimedOut:
+            logger.warning(
+                "Telegram send request timed out for chat_id={}. Message delivery may have succeeded.",
+                self.chat_id,
+            )
+            return False
         except Exception as e:
             logger.error(f"Failed to send Telegram message: {e}")
             # 예외를 발생시키지 않음 - 알림 실패가 앱을 중단해서는 안 됨
+            return False
 
-    async def send_error(self, error: Exception, context: str = "") -> None:
+    async def send_error(self, error: Exception, context: str = "") -> bool:
         """오류 발생 알림을 텔레그램으로 전송합니다.
 
         Args:
@@ -79,4 +88,4 @@ class TelegramNotifier:
         message += f"**Error:** `{type(error).__name__}`\n"
         message += f"**Message:** {str(error)}"
 
-        await self.send_message(message)
+        return await self.send_message(message)

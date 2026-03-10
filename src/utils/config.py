@@ -42,6 +42,7 @@ class LoggingConfig(BaseModel):
     )
     rotation: str = Field(default="00:00")
     retention: str = Field(default="10 days")
+    json_logs: bool = Field(default=False)
 
 
 class TelegramConfig(BaseModel):

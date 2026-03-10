@@ -4,6 +4,7 @@ from pathlib import Path
 from loguru import logger
 
 from src.utils.logger import (
+    _build_console_format,
     _log_namer,
     _make_retention_handler,
     _parse_retention_days,
@@ -18,6 +19,25 @@ def test_setup_logger_console_only(tmp_path: Path) -> None:
 
     # Logger should be configured
     assert len(logger._core.handlers) > 0
+
+
+def test_build_console_format_applies_color_markup() -> None:
+    fmt = "[{time}][{level}] {message}"
+    result = _build_console_format(fmt, json_logs=False)
+    assert "<level>{level}</level>" in result
+    assert "<level>{message}</level>" in result
+
+
+def test_build_console_format_keeps_existing_markup() -> None:
+    fmt = "[{time}] <level>{level}</level> {message}"
+    result = _build_console_format(fmt, json_logs=False)
+    assert result == fmt
+
+
+def test_build_console_format_keeps_json_logs_format() -> None:
+    fmt = "{message}"
+    result = _build_console_format(fmt, json_logs=True)
+    assert result == fmt
 
 
 def test_setup_logger_with_file(tmp_path: Path) -> None:
@@ -69,17 +89,21 @@ def test_parse_retention_days() -> None:
 
 def test_retention_handler_renames_rotated_file(tmp_path: Path) -> None:
     """retention 핸들러가 로테이션된 파일을 _YYYYMMDD.log로 이름변경하는지 검증."""
+    from datetime import datetime
+
     log_file = tmp_path / "app.log"
     handler = _make_retention_handler("10 days", log_file)
 
     # Loguru 기본 형식의 백업 파일 생성
-    rotated = tmp_path / "app.log.2026-02-05_00-00-00_000000"
+    today = datetime.now().strftime("%Y-%m-%d")
+    today_compact = datetime.now().strftime("%Y%m%d")
+    rotated = tmp_path / f"app.log.{today}_00-00-00_000000"
     rotated.write_text("old log")
 
     handler([str(rotated)])
 
     # _YYYYMMDD.log 형식으로 이름변경 확인
-    renamed = tmp_path / "app_20260205.log"
+    renamed = tmp_path / f"app_{today_compact}.log"
     assert renamed.exists()
     assert renamed.read_text() == "old log"
     assert not rotated.exists()

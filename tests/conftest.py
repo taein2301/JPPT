@@ -48,12 +48,12 @@ def mock_http_client() -> MagicMock:
 
 @pytest.fixture
 def temp_config_dir(tmp_path: Path) -> Path:
-    """Create temporary config directory with default.yaml."""
+    """Create temporary config directory with dev.yaml."""
     config_dir = tmp_path / "config"
     config_dir.mkdir()
 
-    default_file = config_dir / "default.yaml"
-    default_file.write_text(
+    dev_file = config_dir / "dev.yaml"
+    dev_file.write_text(
         """
 app:
   name: "test"
@@ -63,6 +63,7 @@ app:
 logging:
   level: "INFO"
   format: "{time} | {level} | {message}"
+  json_logs: false
   rotation: "00:00"
   retention: "10 days"
 

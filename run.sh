@@ -67,8 +67,9 @@ check_config() {
 }
 
 setup_logs_dir() {
-    if [ ! -d "logs" ]; then
-        mkdir -p logs
+    local logs_dir="$HOME/logs"
+    if [ ! -d "$logs_dir" ]; then
+        mkdir -p "$logs_dir"
     fi
 }
 
@@ -102,7 +103,7 @@ EXAMPLES:
 
 CONFIGURATION:
     Config files are loaded from: config/{ENV}.yaml
-    Log files are written to: logs/jppt.log or logs/jppt_batch.log
+    Log files are written to: \$HOME/logs/jppt.log or \$HOME/logs/jppt_batch.log
 
 FIRST TIME SETUP:
     If you haven't set up the project yet, run:
@@ -141,17 +142,17 @@ main() {
     check_config "$ENV"
     setup_logs_dir
 
-    # Extract app name from config
-    APP_NAME=$(grep "name:" config/default.yaml | head -1 | sed 's/.*: *"\(.*\)".*/\1/')
+    # Extract app name from selected config
+    APP_NAME=$(grep "name:" "config/${ENV}.yaml" | head -1 | sed 's/.*: *"\(.*\)".*/\1/')
     if [ -z "$APP_NAME" ]; then
         APP_NAME="jppt"  # Fallback to default if extraction fails
     fi
 
     # Determine log file name
     if [ "$MODE" = "batch" ]; then
-        LOG_FILE="logs/${APP_NAME}_batch.log"
+        LOG_FILE="$HOME/logs/${APP_NAME}_batch.log"
     else
-        LOG_FILE="logs/${APP_NAME}.log"
+        LOG_FILE="$HOME/logs/${APP_NAME}.log"
     fi
 
     # Print execution info
@@ -160,6 +161,13 @@ main() {
     echo "  ${BLUE}Environment:${RESET} $ENV"
     echo "  ${BLUE}Config:${RESET}      config/${ENV}.yaml"
     echo "  ${BLUE}Logs:${RESET}        $LOG_FILE"
+    echo "  ${BLUE}Command:${RESET}     uv run python -m src.main ${MODE} --env ${ENV}"
+    if [ "$MODE" = "start" ]; then
+        echo "  ${YELLOW}Note:${RESET}        start mode runs as daemon (template idle loop)."
+        echo "                It keeps running until Ctrl+C."
+    else
+        echo "  ${YELLOW}Note:${RESET}        batch mode runs once and exits."
+    fi
     echo ""
 
     # Run the application

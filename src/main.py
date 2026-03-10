@@ -10,7 +10,7 @@ from pathlib import Path
 import typer
 from loguru import logger
 
-from src.utils.config import load_config
+from src.utils.config import Settings, load_config
 from src.utils.logger import setup_logger
 
 # 프로젝트 루트 디렉토리 (src/의 부모 디렉토리)
@@ -19,6 +19,46 @@ app = typer.Typer(
     help="JKLEE Python Project Template",
     add_completion=False,
 )
+
+
+def _log_loaded_config(
+    *,
+    mode: str,
+    env: str,
+    settings: Settings,
+    effective_log_level: str,
+    log_file: Path,
+) -> None:
+    """실행 시작 시 핵심 설정 요약을 로깅합니다."""
+    logger.info(
+        "Loaded config summary:\n"
+        "  mode: {}\n"
+        "  env: {}\n"
+        "  app: {}\n"
+        "  version: {}\n"
+        "  debug: {}\n"
+        "  log_level: {}\n"
+        "  log_json: {}\n"
+        "  log_file: {}\n"
+        "  telegram_enabled: {}",
+        mode,
+        env,
+        settings.app.name,
+        settings.app.version,
+        settings.app.debug,
+        effective_log_level,
+        settings.logging.json_logs,
+        log_file,
+        settings.telegram.enabled,
+    )
+
+
+def _resolve_log_level(config_level: str, log_level: str | None, verbose: bool) -> str:
+    if verbose:
+        return "DEBUG"
+    if log_level:
+        return log_level.upper()
+    return config_level
 
 
 def version_callback(value: bool) -> None:
@@ -49,8 +89,8 @@ def main(
 def start(
     env: str = typer.Option("dev", "--env", "-e", help="Environment (dev/prod)"),
     config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
-    log_level: str = typer.Option("INFO", "--log-level", "-l", help="Log level"),
-    verbose: bool = typer.Option(False, "--verbose", help="Verbose output"),
+    log_level: str | None = typer.Option(None, "--log-level", "-l", help="Override log level"),
+    verbose: bool = typer.Option(False, "--verbose", help="Shortcut for --log-level DEBUG"),
 ) -> None:
     """앱 모드로 실행합니다 (데몬/장시간 실행).
 
@@ -64,17 +104,23 @@ def start(
     else:
         settings = load_config(env=env)
 
-    # 로깅 설정 (verbose 모드면 DEBUG 레벨로 변경)
-    if verbose:
-        log_level = "DEBUG"
+    effective_log_level = _resolve_log_level(settings.logging.level, log_level, verbose)
 
     log_file = Path.home() / "logs" / f"{settings.app.name}.log"
     setup_logger(
-        level=log_level,
+        level=effective_log_level,
         log_file=log_file,
         format_str=settings.logging.format,
+        json_logs=settings.logging.json_logs,
         rotation=settings.logging.rotation,
         retention=settings.logging.retention,
+    )
+    _log_loaded_config(
+        mode="start",
+        env=env,
+        settings=settings,
+        effective_log_level=effective_log_level,
+        log_file=log_file,
     )
 
     logger.info(f"Starting {settings.app.name} in app mode")
@@ -91,8 +137,8 @@ def start(
 def batch(
     env: str = typer.Option("dev", "--env", "-e", help="Environment (dev/prod)"),
     config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
-    log_level: str = typer.Option("INFO", "--log-level", "-l", help="Log level"),
-    verbose: bool = typer.Option(False, "--verbose", help="Verbose output"),
+    log_level: str | None = typer.Option(None, "--log-level", "-l", help="Override log level"),
+    verbose: bool = typer.Option(False, "--verbose", help="Shortcut for --log-level DEBUG"),
 ) -> None:
     """배치 모드로 실행합니다 (일회성 실행).
 
@@ -106,17 +152,23 @@ def batch(
     else:
         settings = load_config(env=env)
 
-    # 로깅 설정 (verbose 모드면 DEBUG 레벨로 변경)
-    if verbose:
-        log_level = "DEBUG"
+    effective_log_level = _resolve_log_level(settings.logging.level, log_level, verbose)
 
     log_file = Path.home() / "logs" / f"{settings.app.name}_batch.log"
     setup_logger(
-        level=log_level,
+        level=effective_log_level,
         log_file=log_file,
         format_str=settings.logging.format,
+        json_logs=settings.logging.json_logs,
         rotation=settings.logging.rotation,
         retention=settings.logging.retention,
+    )
+    _log_loaded_config(
+        mode="batch",
+        env=env,
+        settings=settings,
+        effective_log_level=effective_log_level,
+        log_file=log_file,
     )
 
     logger.info(f"Starting {settings.app.name} in batch mode")
@@ -144,8 +196,8 @@ def api(
         help="Port for API server",
     ),
     reload: bool = typer.Option(False, "--reload", help="Enable auto reload (dev only)"),
-    log_level: str = typer.Option("INFO", "--log-level", "-l", help="Log level"),
-    verbose: bool = typer.Option(False, "--verbose", help="Verbose output"),
+    log_level: str | None = typer.Option(None, "--log-level", "-l", help="Override log level"),
+    verbose: bool = typer.Option(False, "--verbose", help="Shortcut for --log-level DEBUG"),
 ) -> None:
     """API 서버로 실행합니다.
 
@@ -158,17 +210,23 @@ def api(
     else:
         settings = load_config(env=env)
 
-    # 로깅 설정 (verbose 모드면 DEBUG 레벨로 변경)
-    if verbose:
-        log_level = "DEBUG"
+    effective_log_level = _resolve_log_level(settings.logging.level, log_level, verbose)
 
     log_file = Path.home() / "logs" / f"{settings.app.name}_api.log"
     setup_logger(
-        level=log_level,
+        level=effective_log_level,
         log_file=log_file,
         format_str=settings.logging.format,
+        json_logs=settings.logging.json_logs,
         rotation=settings.logging.rotation,
         retention=settings.logging.retention,
+    )
+    _log_loaded_config(
+        mode="api",
+        env=env,
+        settings=settings,
+        effective_log_level=effective_log_level,
+        log_file=log_file,
     )
 
     logger.info(f"Starting {settings.app.name} in API mode")

@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from telegram.error import TimedOut
 
 from src.utils.telegram import TelegramNotifier
 
@@ -37,3 +38,21 @@ async def test_telegram_error_handling() -> None:
 
         # Should not raise, just log error
         await notifier.send_message("test")
+
+
+@pytest.mark.asyncio
+async def test_telegram_timeout_is_warning_not_error() -> None:
+    with (
+        patch("src.utils.telegram.Bot") as mock_bot_class,
+        patch("src.utils.telegram.logger.warning") as mock_warning,
+        patch("src.utils.telegram.logger.error") as mock_error,
+    ):
+        mock_bot = AsyncMock()
+        mock_bot.send_message.side_effect = TimedOut("Timed out")
+        mock_bot_class.return_value = mock_bot
+
+        notifier = TelegramNotifier(bot_token="test-token", chat_id="12345", enabled=True)
+        await notifier.send_message("test")
+
+    mock_warning.assert_called_once()
+    mock_error.assert_not_called()

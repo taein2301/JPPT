@@ -15,6 +15,19 @@ from pathlib import Path
 from loguru import logger
 
 
+def _build_console_format(format_str: str, json_logs: bool) -> str:
+    """콘솔 로그 포맷에 컬러 태그를 안전하게 적용합니다."""
+    if json_logs:
+        return format_str
+
+    if "<" in format_str and ">" in format_str:
+        return format_str
+
+    colored = format_str.replace("{level}", "<level>{level}</level>")
+    colored = colored.replace("{message}", "<level>{message}</level>")
+    return colored
+
+
 def _resolve_log_file_path(log_file: Path) -> Path:
     """로그 파일 경로가 쓰기 가능한지 확인하고, 불가하면 임시 경로로 보완합니다."""
 
@@ -123,6 +136,7 @@ def setup_logger(
     ),
     rotation: str = "00:00",
     retention: str = "10 days",
+    json_logs: bool = False,
 ) -> None:
     """Loguru 로거를 설정합니다.
 
@@ -139,15 +153,17 @@ def setup_logger(
     """
     # 기본 핸들러 제거 (깨끗한 상태로 시작)
     logger.remove()
+    console_format = _build_console_format(format_str, json_logs)
 
     # 콘솔 핸들러 추가 (색상, backtrace, diagnose 활성화)
     logger.add(
         sys.stderr,
-        format=format_str,
+        format=console_format,
         level=level,
         colorize=True,
         backtrace=True,
         diagnose=True,
+        serialize=json_logs,
     )
 
     # 파일 핸들러 추가 (지정된 경우)
@@ -174,6 +190,7 @@ def setup_logger(
                 compression=None,
                 backtrace=True,
                 diagnose=True,
+                serialize=json_logs,
             )
         except OSError as exc:
             logger.warning(

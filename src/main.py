@@ -184,18 +184,22 @@ def batch(
 def api(
     env: str = typer.Option("dev", "--env", "-e", help="Environment (dev/prod)"),
     config: str | None = typer.Option(None, "--config", "-c", help="Config file path"),
-    host: str = typer.Option(
-        "0.0.0.0",
+    host: str | None = typer.Option(
+        None,
         "--host",
         help="Bind host for API server",
     ),
-    port: int = typer.Option(
-        8000,
+    port: int | None = typer.Option(
+        None,
         "--port",
         "-p",
         help="Port for API server",
     ),
-    reload: bool = typer.Option(False, "--reload", help="Enable auto reload (dev only)"),
+    reload: bool | None = typer.Option(
+        None,
+        "--reload/--no-reload",
+        help="Enable auto reload (dev only)",
+    ),
     log_level: str | None = typer.Option(None, "--log-level", "-l", help="Override log level"),
     verbose: bool = typer.Option(False, "--verbose", help="Shortcut for --log-level DEBUG"),
 ) -> None:
@@ -230,13 +234,22 @@ def api(
     )
 
     logger.info(f"Starting {settings.app.name} in API mode")
-    logger.info(f"API host: {host}:{port}")
+    effective_host = settings.api.host if host is None else host
+    effective_port = settings.api.port if port is None else port
+    effective_reload = settings.api.reload if reload is None else reload
+    logger.info(f"API host: {effective_host}:{effective_port}")
+    logger.info(f"API reload: {effective_reload}")
     logger.info(f"Environment: {env}")
 
     # API 실행 (동기 실행)
     from src.utils.api_runner import run_api_server
 
-    run_api_server(settings, host=host, port=port, reload=reload)
+    run_api_server(
+        settings,
+        host=effective_host,
+        port=effective_port,
+        reload=effective_reload,
+    )
 
 
 if __name__ == "__main__":

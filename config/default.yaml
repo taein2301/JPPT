@@ -1,10 +1,10 @@
 app:
   name: "jppt"
   version: "0.1.0"
-  debug: true
+  debug: false
 
 logging:
-  level: "DEBUG"
+  level: "INFO"
   format: "[{time:YYYY-MM-DD HH:mm:ss}][{level}]{message} [{file.name}:{line}]"
   json_logs: false
   rotation: "00:00"
@@ -16,12 +16,11 @@ telegram:
   chat_id: ""
 
 api:
-  host: "127.0.0.1"
+  host: "0.0.0.0"
   port: 8000
-  reload: true
+  reload: false
   docs_enabled: true
-  cors_origins:
-    - "http://localhost:3000"
+  cors_origins: []
   trusted_hosts:
-    - "localhost"
-    - "127.0.0.1"
+    - "*"
+  root_path: ""

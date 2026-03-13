@@ -100,8 +100,10 @@ uv run python -m src.main api --env dev --port 8000
 
 ```bash
 curl http://localhost:8000/health
+curl http://localhost:8000/ready
 curl -X POST http://localhost:8000/jobs \
   -H "Content-Type: application/json" \
+  -H "X-Request-ID: sample-request" \
   -d '{"name": "sample", "payload": {"foo": "bar"}}'
 ```
 
@@ -259,7 +261,18 @@ telegram:
   enabled: false
   bot_token: ""
   chat_id: ""
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: false
+  docs_enabled: true
+  cors_origins: []
+  trusted_hosts:
+    - "*"
 ```
+
+Environment-specific files can override only the keys they need instead of repeating the full base file.
 
 ### Telegram Setup
 
@@ -273,13 +286,15 @@ Telegram can be configured in two ways:
 **2. Environment variable override:**
    ```bash
    # Linux/macOS
-   export TELEGRAM_BOT_TOKEN="your-token"
-   export TELEGRAM_CHAT_ID="your-chat-id"
+   export TELEGRAM__BOT_TOKEN="your-token"
+   export TELEGRAM__CHAT_ID="your-chat-id"
+   export API__PORT="9000"
    ```
    ```powershell
    # Windows (PowerShell)
-   $env:TELEGRAM_BOT_TOKEN="your-token"
-   $env:TELEGRAM_CHAT_ID="your-chat-id"
+   $env:TELEGRAM__BOT_TOKEN="your-token"
+   $env:TELEGRAM__CHAT_ID="your-chat-id"
+   $env:API__PORT="9000"
    ```
 
 ### Environment-Specific Config

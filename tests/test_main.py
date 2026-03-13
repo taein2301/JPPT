@@ -226,3 +226,27 @@ def test_api_command_basic(
     assert result.exit_code == 0
     mock_run_api_server.assert_called_once()
     assert mock_run_api_server.call_args.kwargs["port"] == 9001
+
+
+@patch("src.main.load_config")
+@patch("src.main.setup_logger")
+@patch("src.utils.api_runner.run_api_server")
+def test_api_command_uses_settings_defaults(
+    mock_run_api_server, mock_setup_logger: AsyncMock, mock_load_config: AsyncMock
+) -> None:
+    from src.utils.config import Settings
+
+    mock_load_config.return_value = Settings(
+        app={"name": "test-app", "version": "0.1.0", "debug": False},
+        logging={"level": "INFO", "json_logs": False},
+        telegram={"enabled": False},
+        api={"host": "127.0.0.1", "port": 9100, "reload": True},
+    )
+
+    result = runner.invoke(app, ["api"])
+
+    assert result.exit_code == 0
+    mock_run_api_server.assert_called_once()
+    assert mock_run_api_server.call_args.kwargs["host"] == "127.0.0.1"
+    assert mock_run_api_server.call_args.kwargs["port"] == 9100
+    assert mock_run_api_server.call_args.kwargs["reload"] is True

@@ -153,6 +153,23 @@ check_gh() {
     fi
 
     print_success "GitHub CLI is authenticated"
+
+    # Check repo creation scope
+    local token_scopes
+    token_scopes=$(gh auth status 2>&1 | grep -i "token scopes" | head -n1)
+    if ! echo "$token_scopes" | grep -qE "repo|'repo'"; then
+        print_error "GitHub token is missing 'repo' scope (required for repository creation)"
+        echo ""
+        echo "Token scopes found: $token_scopes"
+        echo ""
+        echo "Fix with one of:"
+        echo "  gh auth refresh -s repo          # add repo scope to current token"
+        echo "  gh auth login --scopes \"repo\"    # re-login with repo scope"
+        echo ""
+        return 1
+    fi
+
+    print_success "GitHub token has required 'repo' scope"
     return 0
 }
 
@@ -337,6 +354,9 @@ create_github_repo() {
         --description="Created from JPPT template" \
         --push; then
         print_error "Failed to create GitHub repository"
+        echo ""
+        print_warning "If you see 'Resource not accessible by personal access token':"
+        print_info "  gh auth refresh -s repo    # then re-run this script"
         echo ""
         print_warning "Local project created successfully at: $target_dir"
         print_info "You can create the repository manually:"

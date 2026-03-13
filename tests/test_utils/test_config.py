@@ -32,17 +32,45 @@ def test_settings_default_values() -> None:
     assert settings.app.debug is False
     assert settings.logging.level == "INFO"
     assert settings.logging.json_logs is False
+    assert settings.api.host == "0.0.0.0"
+    assert settings.api.port == 8000
+    assert settings.api.docs_enabled is True
 
 
 def test_load_config_complete(tmp_path: Path) -> None:
     """Test loading complete environment config."""
-    # Create test config file
+    default_file = tmp_path / "default.yaml"
+    default_file.write_text(
+        """
+app:
+  name: "base"
+  version: "0.0.1"
+  debug: false
+logging:
+  level: "INFO"
+  format: "base format"
+  json_logs: false
+  rotation: "00:00"
+  retention: "10 days"
+telegram:
+  enabled: false
+  bot_token: ""
+  chat_id: ""
+api:
+  host: "127.0.0.1"
+  port: 8100
+  reload: false
+  docs_enabled: true
+  cors_origins:
+    - "http://localhost:3000"
+"""
+    )
+
     dev_file = tmp_path / "dev.yaml"
     dev_file.write_text(
         """
 app:
   name: "test"
-  version: "0.1.0"
   debug: true
 logging:
   level: "DEBUG"
@@ -54,6 +82,9 @@ telegram:
   enabled: false
   bot_token: ""
   chat_id: ""
+api:
+  port: 9100
+  reload: true
 """
     )
 
@@ -62,9 +93,24 @@ telegram:
     assert config.logging.level == "DEBUG"
     assert config.logging.json_logs is False
     assert config.app.name == "test"
+    assert config.app.version == "0.0.1"
+    assert config.api.host == "127.0.0.1"
+    assert config.api.port == 9100
+    assert config.api.reload is True
+    assert config.api.cors_origins == ["http://localhost:3000"]
 
 
 def test_load_config_missing_file(tmp_path: Path) -> None:
     """Test error when config file is missing."""
+    (tmp_path / "default.yaml").write_text("app:\n  name: base\n")
+
     with pytest.raises(ConfigurationError, match="Config file not found"):
+        load_config(env="dev", config_dir=tmp_path)
+
+
+def test_load_config_missing_default_file(tmp_path: Path) -> None:
+    """기본 설정 파일이 없으면 예외가 발생해야 한다."""
+    (tmp_path / "dev.yaml").write_text("app:\n  name: test\n")
+
+    with pytest.raises(ConfigurationError, match="Default config file not found"):
         load_config(env="dev", config_dir=tmp_path)

@@ -10,9 +10,9 @@ from src.utils.config import Settings
 
 def run_api_server(
     settings: Settings,
-    host: str = "0.0.0.0",
-    port: int = 8000,
-    reload: bool = False,
+    host: str | None = None,
+    port: int | None = None,
+    reload: bool | None = None,
 ) -> None:
     """FastAPI 서버를 실행합니다.
 
@@ -29,12 +29,20 @@ def run_api_server(
     from src.api.app import create_api_app
 
     api_app = create_api_app(settings)
+    effective_host = settings.api.host if host is None else host
+    effective_port = settings.api.port if port is None else port
+    effective_reload = settings.api.reload if reload is None else reload
 
-    logger.info(f"Starting API server for {settings.app.name} on {host}:{port}")
+    logger.info(
+        "Starting API server for {} on {}:{}",
+        settings.app.name,
+        effective_host,
+        effective_port,
+    )
     uvicorn.run(
         api_app,
-        host=host,
-        port=port,
+        host=effective_host,
+        port=effective_port,
         log_level=settings.logging.level.lower(),
-        reload=reload,
+        reload=effective_reload,
     )

@@ -66,7 +66,10 @@ class TelegramNotifier:
             return True
         except TimedOut:
             logger.warning(
-                "Telegram send request timed out for chat_id={}. Message delivery may have succeeded.",
+                (
+                    "Telegram send request timed out for chat_id={}. "
+                    "Message delivery may have succeeded."
+                ),
                 self.chat_id,
             )
             return False

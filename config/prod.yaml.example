@@ -14,3 +14,12 @@ telegram:
   enabled: false
   bot_token: ""
   chat_id: ""
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: false
+  docs_enabled: false
+  cors_origins: []
+  trusted_hosts:
+    - "example.com"

@@ -114,3 +114,132 @@ def test_load_config_missing_default_file(tmp_path: Path) -> None:
 
     with pytest.raises(ConfigurationError, match="Default config file not found"):
         load_config(env="dev", config_dir=tmp_path)
+
+
+def test_load_config_with_telegram_silent_time(tmp_path: Path) -> None:
+    """텔레그램 silent time 설정을 로드해야 한다."""
+    default_file = tmp_path / "default.yaml"
+    default_file.write_text(
+        """
+app:
+  name: "base"
+  version: "0.0.1"
+  debug: false
+logging:
+  level: "INFO"
+  format: "base format"
+  json_logs: false
+  rotation: "00:00"
+  retention: "10 days"
+telegram:
+  enabled: true
+  bot_token: "token"
+  chat_id: "chat"
+  silent_time:
+    enabled: true
+    start: "23:00"
+    end: "08:00"
+    timezone: "Asia/Seoul"
+api:
+  host: "127.0.0.1"
+  port: 8100
+  reload: false
+  docs_enabled: true
+  cors_origins: []
+"""
+    )
+    dev_file = tmp_path / "dev.yaml"
+    dev_file.write_text(
+        """
+telegram:
+  silent_time:
+    start: "22:30"
+"""
+    )
+
+    config = load_config(env="dev", config_dir=tmp_path)
+
+    assert config.telegram.silent_time.enabled is True
+    assert config.telegram.silent_time.start == "22:30"
+    assert config.telegram.silent_time.end == "08:00"
+    assert config.telegram.silent_time.timezone == "Asia/Seoul"
+
+
+def test_load_config_allows_unknown_timezone_when_silent_time_disabled(tmp_path: Path) -> None:
+    """silent time이 비활성화면 타임존 검증을 건너뛰어야 한다."""
+    default_file = tmp_path / "default.yaml"
+    default_file.write_text(
+        """
+app:
+  name: "base"
+  version: "0.0.1"
+  debug: false
+logging:
+  level: "INFO"
+  format: "base format"
+  json_logs: false
+  rotation: "00:00"
+  retention: "10 days"
+telegram:
+  enabled: true
+  bot_token: "token"
+  chat_id: "chat"
+  silent_time:
+    enabled: false
+    start: "23:00"
+    end: "08:00"
+    timezone: "Invalid/Timezone"
+api:
+  host: "127.0.0.1"
+  port: 8100
+  reload: false
+  docs_enabled: true
+  cors_origins: []
+"""
+    )
+    dev_file = tmp_path / "dev.yaml"
+    dev_file.write_text("")
+
+    config = load_config(env="dev", config_dir=tmp_path)
+
+    assert config.telegram.silent_time.enabled is False
+    assert config.telegram.silent_time.timezone == "Invalid/Timezone"
+
+
+def test_load_config_rejects_unknown_timezone_when_silent_time_enabled(tmp_path: Path) -> None:
+    """silent time이 활성화면 유효한 타임존이어야 한다."""
+    default_file = tmp_path / "default.yaml"
+    default_file.write_text(
+        """
+app:
+  name: "base"
+  version: "0.0.1"
+  debug: false
+logging:
+  level: "INFO"
+  format: "base format"
+  json_logs: false
+  rotation: "00:00"
+  retention: "10 days"
+telegram:
+  enabled: true
+  bot_token: "token"
+  chat_id: "chat"
+  silent_time:
+    enabled: true
+    start: "23:00"
+    end: "08:00"
+    timezone: "Invalid/Timezone"
+api:
+  host: "127.0.0.1"
+  port: 8100
+  reload: false
+  docs_enabled: true
+  cors_origins: []
+"""
+    )
+    dev_file = tmp_path / "dev.yaml"
+    dev_file.write_text("")
+
+    with pytest.raises(ValueError, match="Timezone must be a valid IANA timezone"):
+        load_config(env="dev", config_dir=tmp_path)

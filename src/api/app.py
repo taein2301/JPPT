@@ -3,8 +3,7 @@
 이 모듈은 템플릿의 공통 설정을 기반으로 API 라우트를 제공합니다.
 """
 
-from collections.abc import AsyncIterator
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 from uuid import uuid4

@@ -3,9 +3,15 @@
 이 모듈은 텔레그램 봇을 통해 메시지 및 오류 알림을 전송하는 기능을 제공합니다.
 """
 
+from collections.abc import Callable
+from datetime import datetime, time
+from zoneinfo import ZoneInfo
+
 from loguru import logger
 from telegram import Bot
 from telegram.error import TimedOut
+
+from src.utils.config import TelegramSilentTimeConfig
 
 
 class TelegramNotifier:
@@ -19,23 +25,57 @@ class TelegramNotifier:
         await notifier.send_message("안녕하세요!")
     """
 
-    def __init__(self, bot_token: str, chat_id: str, enabled: bool = True) -> None:
+    def __init__(
+        self,
+        bot_token: str,
+        chat_id: str,
+        enabled: bool = True,
+        silent_time: TelegramSilentTimeConfig | None = None,
+        now_provider: Callable[[], datetime] | None = None,
+    ) -> None:
         """텔레그램 알림 전송기를 초기화합니다.
 
         Args:
             bot_token: 텔레그램 봇 토큰
             chat_id: 텔레그램 채팅방 ID
             enabled: 알림 활성화 여부
+            silent_time: 무음 시간 설정
+            now_provider: 현재 시각 주입 함수 (테스트용)
         """
         self.enabled = enabled
         self.chat_id = chat_id
         self._bot: Bot | None = None
+        self._silent_time = silent_time or TelegramSilentTimeConfig()
+        self._now_provider = now_provider or self._default_now_provider
 
         if enabled and bot_token:
             self._bot = Bot(token=bot_token)
             logger.info(f"Telegram notifier initialized: chat_id={chat_id}")
         elif enabled:
             logger.warning("Telegram enabled but bot_token is empty")
+
+    def _default_now_provider(self) -> datetime:
+        """설정된 타임존 기준 현재 시각을 반환합니다."""
+        return datetime.now(ZoneInfo(self._silent_time.timezone))
+
+    @staticmethod
+    def _parse_hhmm(value: str) -> time:
+        """HH:MM 문자열을 time 객체로 변환합니다."""
+        return datetime.strptime(value, "%H:%M").time()
+
+    def _is_silent_time(self) -> bool:
+        """현재 시각이 무음 시간 구간인지 확인합니다."""
+        if not self._silent_time.enabled:
+            return False
+
+        now = self._now_provider().astimezone(ZoneInfo(self._silent_time.timezone)).time()
+        start = self._parse_hhmm(self._silent_time.start)
+        end = self._parse_hhmm(self._silent_time.end)
+
+        if start <= end:
+            return start <= now < end
+
+        return now >= start or now < end
 
     async def send_message(
         self,
@@ -54,6 +94,14 @@ class TelegramNotifier:
         """
         if not self.enabled or not self._bot:
             logger.debug("Telegram notification skipped (disabled)")
+            return False
+        if self._is_silent_time():
+            logger.info(
+                "Telegram notification skipped due to silent time: {}-{} ({})",
+                self._silent_time.start,
+                self._silent_time.end,
+                self._silent_time.timezone,
+            )
             return False
 
         try:

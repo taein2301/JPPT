@@ -34,6 +34,7 @@ async def run_batch(settings: Settings) -> None:
         bot_token=settings.telegram.bot_token,
         chat_id=settings.telegram.chat_id,
         enabled=settings.telegram.enabled,
+        silent_time=settings.telegram.silent_time,
     )
 
     # 시작 알림 전송

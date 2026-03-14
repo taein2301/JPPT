@@ -5,11 +5,13 @@
 """
 
 from copy import deepcopy
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -58,6 +60,47 @@ class TelegramConfig(BaseModel):
     enabled: bool = Field(default=False)
     bot_token: str = Field(default="")
     chat_id: str = Field(default="")
+    silent_time: "TelegramSilentTimeConfig" = Field(
+        default_factory=lambda: TelegramSilentTimeConfig()
+    )
+
+
+class TelegramSilentTimeConfig(BaseModel):
+    """텔레그램 무음 시간 설정.
+
+    Attributes:
+        enabled: 무음 시간 적용 여부
+        start: 시작 시각 (HH:MM)
+        end: 종료 시각 (HH:MM)
+        timezone: 시각 판정에 사용할 IANA 타임존
+    """
+
+    enabled: bool = Field(default=False)
+    start: str = Field(default="23:00")
+    end: str = Field(default="08:00")
+    timezone: str = Field(default="Asia/Seoul")
+
+    @field_validator("start", "end")
+    @classmethod
+    def validate_time_format(cls, value: str) -> str:
+        """HH:MM 형식의 시각 문자열인지 검증합니다."""
+        try:
+            datetime.strptime(value, "%H:%M")
+        except ValueError as exc:
+            raise ValueError("Time must be in HH:MM format") from exc
+        return value
+
+    @model_validator(mode="after")
+    def validate_timezone_when_enabled(self) -> "TelegramSilentTimeConfig":
+        """silent time 활성화 시에만 IANA 타임존을 검증합니다."""
+        if not self.enabled:
+            return self
+
+        try:
+            ZoneInfo(self.timezone)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError("Timezone must be a valid IANA timezone") from exc
+        return self
 
 
 class ApiConfig(BaseModel):

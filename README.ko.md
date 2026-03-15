@@ -43,7 +43,7 @@
 - ✅ 앱 이름 유효성 검사 (소문자, 숫자, 하이픈, 언더스코어만 허용)
 - ✅ 새 프로젝트 디렉토리 생성 (`../my-app`)
 - ✅ 빌드 아티팩트 제외하고 템플릿 복사
-- ✅ 설정 파일에서 프로젝트 이름 업데이트 (`default.yaml`, `pyproject.toml`)
+- ✅ 설정 파일에서 프로젝트 이름 업데이트 (`dev.yaml`, `dev.yaml.example`, `prod.yaml.example`, `pyproject.toml`)
 - ✅ 새 프로젝트용 `README.md` 및 `docs/PRD.md` 생성
 - ✅ git 저장소 초기화 및 최초 커밋
 - ✅ GitHub 비공개 저장소 생성 및 push
@@ -157,20 +157,19 @@ docs/                    # 문서
 
 ## 설정
 
-### 계층형 설정 시스템
+### 환경별 설정 시스템
 
-설정은 계층적으로 로드되며, 각 계층이 이전 설정을 오버라이드합니다:
+설정은 선택한 환경 파일을 직접 로드하고, 필요하면 환경 변수가 최종 오버라이드합니다:
 
-1. **`config/default.yaml`** — 기본값 및 스키마 (git에 커밋)
-2. **`config/{env}.yaml`** — 환경별 오버라이드 (gitignore)
-3. **환경 변수** — 시크릿을 위한 최종 오버라이드
+1. **`config/{env}.yaml`** — 환경별 실제 설정 (gitignore)
+2. **환경 변수** — 시크릿을 위한 최종 오버라이드
 
 ```yaml
-# config/default.yaml
+# config/dev.yaml
 app:
   name: "jppt"
   version: "0.1.0"
-  debug: false
+  debug: true
 
 logging:
   level: "INFO"
@@ -186,14 +185,16 @@ telegram:
 api:
   host: "0.0.0.0"
   port: 8000
-  reload: false
+  reload: true
   docs_enabled: true
-  cors_origins: []
+  cors_origins:
+    - "http://localhost:3000"
   trusted_hosts:
-    - "*"
+    - "localhost"
+    - "127.0.0.1"
 ```
 
-환경별 파일은 전체를 다시 적어도 되지만, 일반적으로는 필요한 오버라이드만 넣는 쪽이 유지보수에 유리합니다.
+커밋되는 템플릿은 `config/dev.yaml.example`, `config/prod.yaml.example`이고, 실행 전에는 이를 `config/{env}.yaml`로 복사해 사용합니다.
 
 ### 텔레그램 설정
 
@@ -202,7 +203,7 @@ api:
 **1. 인터랙티브 설정 (권장):** `create_app.sh` 실행 시 스크립트가:
    - Bot Token 입력 요청 ([@BotFather](https://t.me/BotFather)에서 발급)
    - Telegram API에서 사용 가능한 Chat ID를 자동 조회
-   - `config/default.yaml`에 설정값 직접 저장
+   - `config/dev.yaml`에 설정값 직접 저장
 
 **2. 환경 변수 오버라이드:**
    ```bash

@@ -43,7 +43,7 @@ This will:
 - ✅ Validate app name (lowercase, numbers, hyphens, underscores only)
 - ✅ Create new project directory (`../my-app`)
 - ✅ Copy template with proper exclusions
-- ✅ Update project name in config files (`default.yaml`, `pyproject.toml`)
+- ✅ Update project name in config files (`dev.yaml`, `dev.yaml.example`, `prod.yaml.example`, `pyproject.toml`)
 - ✅ Create `README.md` and `docs/PRD.md` for new project
 - ✅ Initialize git repository with initial commit
 - ✅ Create private GitHub repository and push
@@ -177,7 +177,7 @@ graph TB
 ```mermaid
 flowchart TD
     START(["🚀 User runs CLI"]) --> PARSE["Parse arguments<br/>(Typer)"]
-    PARSE --> LOAD_CONFIG["Load configuration<br/>(default.yaml → env.yaml → env vars)"]
+    PARSE --> LOAD_CONFIG["Load configuration<br/>(config/{env}.yaml + env vars)"]
     LOAD_CONFIG --> SETUP_LOG["Setup Loguru logger<br/>(console + file)"]
     SETUP_LOG --> MODE{Mode?}
 
@@ -199,8 +199,8 @@ flowchart TD
 
 ```mermaid
 %% TODO(human): Design the configuration loading flow diagram
-%% Show the 3-layer cascade: default.yaml → env.yaml → environment variables
-%% Include priority order and which files are committed vs gitignored
+%% Show single-file env config loading plus optional environment-variable overrides
+%% Include which files are committed templates vs gitignored runtime configs
 ```
 
 ## Project Structure
@@ -236,20 +236,19 @@ docs/                    # Documentation
 
 ## Configuration
 
-### Layered Configuration System
+### Environment Configuration System
 
-Configuration is loaded in layers, where each layer overrides the previous:
+Configuration is loaded from the selected environment file, with optional environment-variable overrides:
 
-1. **`config/default.yaml`** — Base values and schema (committed to git)
-2. **`config/{env}.yaml`** — Environment-specific overrides (gitignored)
-3. **Environment variables** — Final overrides for secrets
+1. **`config/{env}.yaml`** — Environment-specific runtime config (gitignored)
+2. **Environment variables** — Final overrides for secrets
 
 ```yaml
-# config/default.yaml
+# config/dev.yaml
 app:
   name: "jppt"
   version: "0.1.0"
-  debug: false
+  debug: true
 
 logging:
   level: "INFO"
@@ -265,14 +264,16 @@ telegram:
 api:
   host: "0.0.0.0"
   port: 8000
-  reload: false
+  reload: true
   docs_enabled: true
-  cors_origins: []
+  cors_origins:
+    - "http://localhost:3000"
   trusted_hosts:
-    - "*"
+    - "localhost"
+    - "127.0.0.1"
 ```
 
-Environment-specific files can override only the keys they need instead of repeating the full base file.
+Committed templates live in `config/dev.yaml.example` and `config/prod.yaml.example`; copy one to `config/{env}.yaml` before running.
 
 ### Telegram Setup
 
@@ -281,7 +282,7 @@ Telegram can be configured in two ways:
 **1. Interactive setup (recommended):** During `create_app.sh`, the script will:
    - Ask for your Bot Token (get it from [@BotFather](https://t.me/BotFather))
    - Auto-fetch available Chat IDs from the Telegram API
-   - Save settings directly to `config/default.yaml`
+   - Save settings directly to `config/dev.yaml`
 
 **2. Environment variable override:**
    ```bash

@@ -1,10 +1,9 @@
 """Pydantic Settings를 사용한 설정 관리.
 
-이 모듈은 YAML 파일 기반의 계층적 설정 시스템을 제공합니다.
-기본 설정(default.yaml)과 환경별 설정(dev.yaml, prod.yaml)을 병합하여 사용합니다.
+이 모듈은 YAML 파일 기반의 환경별 설정 시스템을 제공합니다.
+환경별 설정(dev.yaml, prod.yaml)을 직접 로드하여 사용합니다.
 """
 
-from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -146,24 +145,6 @@ class Settings(BaseSettings):
     api: ApiConfig = Field(default_factory=ApiConfig)
 
 
-def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
-    """중첩 딕셔너리를 재귀적으로 병합합니다."""
-    merged = deepcopy(base)
-
-    for key, value in override.items():
-        if (
-            key in merged
-            and isinstance(merged[key], dict)
-            and isinstance(value, dict)
-        ):
-            merged[key] = _deep_merge(merged[key], value)
-            continue
-
-        merged[key] = deepcopy(value)
-
-    return merged
-
-
 def load_config(env: str = "dev", config_dir: Path | None = None) -> Settings:
     """YAML 파일에서 설정을 로드합니다.
 
@@ -184,11 +165,7 @@ def load_config(env: str = "dev", config_dir: Path | None = None) -> Settings:
     if config_dir is None:
         config_dir = Path(__file__).parent.parent.parent / "config"
 
-    default_config_file = config_dir / "default.yaml"
     config_file = config_dir / f"{env}.yaml"
-
-    if not default_config_file.exists():
-        raise ConfigurationError(f"Default config file not found: {default_config_file}")
 
     if not config_file.exists():
         raise ConfigurationError(
@@ -196,12 +173,7 @@ def load_config(env: str = "dev", config_dir: Path | None = None) -> Settings:
             f"Please create {env}.yaml from {env}.yaml.example template"
         )
 
-    with default_config_file.open(encoding="utf-8") as f:
-        default_config_data: dict[str, Any] = yaml.safe_load(f) or {}
-
     with config_file.open(encoding="utf-8") as f:
-        env_config_data: dict[str, Any] = yaml.safe_load(f) or {}
-
-    config_data = _deep_merge(default_config_data, env_config_data)
+        config_data: dict[str, Any] = yaml.safe_load(f) or {}
 
     return Settings(**config_data)

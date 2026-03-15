@@ -64,9 +64,9 @@ JPPT/
 │   └── test_utils/
 │       └── __init__.py
 ├── config/                  # 설정 파일
-│   ├── default.yaml         # 기본값 + 스키마 (커밋)
 │   ├── dev.yaml.example     # 개발 환경 예시 (커밋)
 │   ├── dev.yaml             # 개발 환경 설정 (gitignore)
+│   ├── prod.yaml.example    # 운영 환경 예시 (커밋)
 │   └── prod.yaml            # 운영 환경 설정 (gitignore)
 ├── logs/                    # 로그 파일 (gitignore)
 ├── docs/                    # 문서
@@ -119,18 +119,18 @@ python -m src.main --version
 #### 4.2.1 설정 파일 구조
 ```
 config/
-├── default.yaml             # 기본값 + 스키마 (커밋)
 ├── dev.yaml.example         # 개발 환경 예시 (커밋)
 ├── dev.yaml                 # 개발 환경 실제 사용 (gitignore)
+├── prod.yaml.example        # 운영 환경 예시 (커밋)
 └── prod.yaml                # 운영 환경 실제 사용 (gitignore)
 ```
 
 ```yaml
-# config/default.yaml (기본값, 커밋)
+# config/dev.yaml.example (개발 예시, 커밋)
 app:
   name: "my-app"
   version: "0.1.0"
-  debug: false
+  debug: true
 
 logging:
   level: "INFO"
@@ -143,15 +143,10 @@ telegram:
   bot_token: ""
   chat_id: ""
 
-# config/dev.yaml.example (개발 예시, 커밋)
-app:
-  debug: true
-
-telegram:
-  enabled: false
-
 # config/dev.yaml (실제 사용, gitignore)
 app:
+  name: "my-app"
+  version: "0.1.0"
   debug: true
 
 logging:
@@ -162,6 +157,8 @@ telegram:
 
 # config/prod.yaml (실제 사용, gitignore)
 app:
+  name: "my-app"
+  version: "0.1.0"
   debug: false
 
 logging:
@@ -174,14 +171,13 @@ telegram:
 ```
 
 #### 4.2.2 설정 로드 순서
-1. `config/default.yaml` — 기본값 및 스키마 (git 커밋)
-2. `config/{env}.yaml` — 환경별 오버라이드 (gitignore, deep merge)
-3. 환경변수 — 최종 오버라이드 (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`)
+1. `config/{env}.yaml` — 환경별 설정 파일 직접 로드 (gitignore)
+2. 환경변수 — 최종 오버라이드 (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`)
 
 #### 4.2.3 설정 클래스
 - Pydantic BaseSettings 기반 타입 검증
 - `AppConfig`, `LoggingConfig`, `TelegramConfig` 하위 모델
-- `load_config(env, config_dir)` 함수로 계층적 병합
+- `load_config(env, config_dir)` 함수로 환경 파일 단일 로드
 
 ---
 
@@ -252,7 +248,7 @@ async def shutdown():
 - 에러 알림 전송
 - 비활성화 가능 (`telegram.enabled: false`)
 - 인터랙티브 설정: `create_app.sh` 실행 시 Bot Token 입력 및 Chat ID 자동 조회
-- 설정 저장: `config/default.yaml`에 직접 저장 또는 환경변수 오버라이드
+- 설정 저장: `config/dev.yaml`에 직접 저장 또는 환경변수 오버라이드
 
 #### 4.6.3 HTTP Client
 - httpx 기반 비동기 클라이언트

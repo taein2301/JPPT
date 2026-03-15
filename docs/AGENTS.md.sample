@@ -1,0 +1,28 @@
+# AGENTS.md — Generated Project Rules
+
+## Purpose
+
+이 문서는 JPPT 템플릿에서 생성된 프로젝트를 작업할 때 따라야 할 최소 규칙을 정의합니다.
+
+## Template Preservation
+
+- JPPT가 기본 제공한 원본 파일은 수정 불가입니다.
+- 템플릿 원본을 바꿔야 하는 요구가 생기면, 먼저 변경 이유와 영향 범위를 문서화한 뒤 사람 승인 없이는 진행하지 않습니다.
+
+## utils Boundary
+
+- `src/utils/` 위치에는 신규 생성 금지입니다.
+- `src/utils/` 위치의 기존 파일 삭제 금지입니다.
+- `src/utils/` 변경이 꼭 필요하다면 기존 파일 내부 최소 수정만 허용하며, 새 파일 추가나 구조 변경으로 우회하지 않습니다.
+
+## Preferred Extension Points
+
+- 새 비즈니스 로직은 `src/core/` 아래에 추가합니다.
+- 새 CLI 동작은 `src/main.py`에 연결합니다.
+- 설정 확장은 기존 설정 모델과 `config/` 파일을 통해 처리합니다.
+
+## Working Rules
+
+- 최소 diff를 우선합니다.
+- 테스트를 먼저 추가하거나 갱신한 뒤 구현합니다.
+- 관련 검증과 lint를 실제로 실행하기 전에는 완료로 표시하지 않습니다.

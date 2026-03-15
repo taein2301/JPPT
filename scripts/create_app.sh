@@ -49,6 +49,11 @@ print_info() {
     echo "${BLUE}ℹ${RESET} $1"
 }
 
+json_response_ok() {
+    local response="$1"
+    echo "$response" | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
+}
+
 # ============================================================================
 # Section 2: Validation Functions
 # ============================================================================
@@ -154,22 +159,6 @@ check_gh() {
 
     print_success "GitHub CLI is authenticated"
 
-    # Check repo creation scope
-    local token_scopes
-    token_scopes=$(gh auth status 2>&1 | grep -i "token scopes" | head -n1)
-    if ! echo "$token_scopes" | grep -qE "repo|'repo'"; then
-        print_error "GitHub token is missing 'repo' scope (required for repository creation)"
-        echo ""
-        echo "Token scopes found: $token_scopes"
-        echo ""
-        echo "Fix with one of:"
-        echo "  gh auth refresh -s repo          # add repo scope to current token"
-        echo "  gh auth login --scopes \"repo\"    # re-login with repo scope"
-        echo ""
-        return 1
-    fi
-
-    print_success "GitHub token has required 'repo' scope"
     return 0
 }
 
@@ -181,9 +170,9 @@ check_target_directory() {
     if [ -d "$target_dir" ]; then
         print_warning "Directory already exists: $target_dir"
         echo ""
-        read -p "Delete existing directory and continue? [y/N] " -n 1 -r
+        read -p "Delete existing directory and continue? [Y/n] " -n 1 -r
         echo ""
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
+        if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
             print_info "Removing existing directory..."
             rm -rf "$target_dir"
             print_success "Existing directory removed"
@@ -219,6 +208,7 @@ copy_template() {
         --exclude='logs/' \
         --exclude='config/dev.yaml' \
         --exclude='config/prod.yaml' \
+        --exclude='README.ko.md' \
         --exclude='docs/' \
         "$source_dir/" "$target_dir/"; then
         print_error "Failed to copy template"
@@ -226,6 +216,25 @@ copy_template() {
     fi
 
     print_success "Template copied successfully"
+    return 0
+}
+
+copy_generated_agents() {
+    local source_dir="$1"
+    local target_dir="$2"
+    local agents_template="$source_dir/docs/AGENTS.md.sample"
+
+    if [ ! -f "$agents_template" ]; then
+        print_error "Generated AGENTS template not found: $agents_template"
+        return 1
+    fi
+
+    if ! cp "$agents_template" "$target_dir/AGENTS.md"; then
+        print_error "Failed to copy generated AGENTS.md"
+        return 1
+    fi
+
+    print_success "Created AGENTS.md"
     return 0
 }
 
@@ -263,12 +272,14 @@ substitute_project_name() {
 
     cd "$target_dir" || return 1
 
-    # 1. Update config/default.yaml
-    if [ -f "config/default.yaml" ]; then
-        sed -i.bak "s/name: \".*\"/name: \"$app_name\"/" config/default.yaml
-        rm -f config/default.yaml.bak
-        print_success "Updated config/default.yaml"
-    fi
+    # 1. Update environment config files
+    for config_file in config/dev.yaml config/dev.yaml.example config/prod.yaml.example; do
+        if [ -f "$config_file" ]; then
+            sed -i.bak "s/name: \".*\"/name: \"$app_name\"/" "$config_file"
+            rm -f "${config_file}.bak"
+            print_success "Updated $config_file"
+        fi
+    done
 
     # 2. Update pyproject.toml
     if [ -f "pyproject.toml" ]; then
@@ -312,7 +323,7 @@ EOF
     print_success "Created docs/PRD.md"
 
     # Commit the substitutions
-    git add config/default.yaml pyproject.toml README.md docs/PRD.md
+    git add config/dev.yaml config/dev.yaml.example config/prod.yaml.example pyproject.toml README.md docs/PRD.md
     git commit -m "chore: update project name to $app_name"
 
     return 0
@@ -332,9 +343,9 @@ create_github_repo() {
     if gh repo view "$github_user/$app_name" &>/dev/null; then
         print_warning "GitHub repository already exists: $github_user/$app_name"
         echo ""
-        read -p "Delete existing repository and continue? [y/N] " -n 1 -r
+        read -p "Delete existing repository and continue? [Y/n] " -n 1 -r
         echo ""
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
+        if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
             print_info "Deleting existing repository..."
             if gh repo delete "$github_user/$app_name" --yes; then
                 print_success "Existing repository deleted"
@@ -469,6 +480,8 @@ run_tests_optional() {
 }
 
 setup_telegram_optional() {
+    local app_name="$1"
+
     echo ""
     echo "${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     echo "${BOLD}Telegram Bot Setup (Optional)${RESET}"
@@ -490,7 +503,7 @@ setup_telegram_optional() {
     local response=$(curl -s "$api_url")
 
     # Check if API call was successful
-    if echo "$response" | grep -q '"ok":true'; then
+    if json_response_ok "$response"; then
         echo ""
         print_success "Successfully connected to Telegram API!"
         echo ""
@@ -526,24 +539,37 @@ setup_telegram_optional() {
             return 0
         fi
 
-        # Update config/default.yaml
-        if [ -f "config/default.yaml" ]; then
-            print_info "Updating config/default.yaml..."
+        # Update config/dev.yaml
+        if [ -f "config/dev.yaml" ]; then
+            print_info "Updating config/dev.yaml..."
 
-            sed -i.bak "s/bot_token: \"\"/bot_token: \"$bot_token\"/" config/default.yaml
-            sed -i.bak "s/chat_id: \"\"/chat_id: \"$selected_chat_id\"/" config/default.yaml
-            sed -i.bak "s/enabled: false/enabled: true/" config/default.yaml
-            rm -f config/default.yaml.bak
+            sed -i.bak "s/bot_token: \"\"/bot_token: \"$bot_token\"/" config/dev.yaml
+            sed -i.bak "s/chat_id: \"\"/chat_id: \"$selected_chat_id\"/" config/dev.yaml
+            sed -i.bak "0,/enabled: false/s//enabled: true/" config/dev.yaml
+            rm -f config/dev.yaml.bak
 
-            print_success "Telegram settings saved to config/default.yaml!"
+            print_success "Telegram settings saved to config/dev.yaml!"
             echo ""
             print_info "Settings applied:"
             echo "  ${GREEN}✓${RESET} telegram.enabled: true"
             echo "  ${GREEN}✓${RESET} telegram.bot_token: $bot_token"
             echo "  ${GREEN}✓${RESET} telegram.chat_id: $selected_chat_id"
             echo ""
+
+            local send_response
+            local message_text="${app_name} create 성공"
+            send_response=$(curl -s -X POST "https://api.telegram.org/bot${bot_token}/sendMessage" \
+                --data-urlencode "chat_id=${selected_chat_id}" \
+                --data-urlencode "text=${message_text}")
+
+            if json_response_ok "$send_response"; then
+                print_success "Telegram sample message sent"
+            else
+                print_warning "Telegram sample message could not be sent"
+                print_info "Response: $send_response"
+            fi
         else
-            print_warning "config/default.yaml not found, skipping update"
+            print_warning "config/dev.yaml not found, skipping update"
         fi
     else
         print_error "Failed to connect to Telegram API"
@@ -649,6 +675,11 @@ main() {
 
     # Copy and setup template
     copy_template "$SOURCE_DIR" "$TARGET_DIR" || exit 1
+    copy_generated_agents "$SOURCE_DIR" "$TARGET_DIR" || exit 1
+    (
+        cd "$TARGET_DIR" || exit 1
+        setup_config
+    ) || exit 1
     init_git "$TARGET_DIR" || exit 1
     substitute_project_name "$APP_NAME" "$TARGET_DIR" || exit 1
     create_github_repo "$APP_NAME" "$TARGET_DIR" || exit 1
@@ -661,7 +692,7 @@ main() {
     install_hooks
 
     # Optional Telegram setup
-    setup_telegram_optional
+    setup_telegram_optional "$APP_NAME"
 
     # Optional tests
     run_tests_optional
@@ -686,17 +717,12 @@ main() {
     echo "  1. Navigate to your project:"
     echo "     ${BLUE}cd $TARGET_DIR${RESET}"
     echo ""
-    echo "  2. Set up Telegram (optional):"
-    echo "     ${BLUE}# BOT_TOKEN: Message @BotFather -> /newbot${RESET}"
-    echo "     ${BLUE}# CHAT_ID: Message @userinfobot or https://api.telegram.org/bot<TOKEN>/getUpdates${RESET}"
-    echo "     ${BLUE}export TELEGRAM_BOT_TOKEN=\"your-token\"${RESET}"
-    echo "     ${BLUE}export TELEGRAM_CHAT_ID=\"your-chat-id\"${RESET}"
-    echo ""
-    echo "  3. Review and customize:"
+    echo "  2. Review and customize:"
     echo "     ${BLUE}config/dev.yaml${RESET}"
+    echo "     ${BLUE}docs/PRD.md${RESET}"
     echo "     ${BLUE}README.md${RESET}"
     echo ""
-    echo "  4. Start developing:"
+    echo "  3. Start developing:"
     echo "     ${BLUE}./run.sh${RESET}              # Start mode (dev)"
     echo "     ${BLUE}./run.sh batch${RESET}        # Batch mode (dev)"
     echo ""

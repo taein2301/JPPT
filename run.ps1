@@ -132,10 +132,11 @@ function Main {
     Check-Config -Env $Env
     Setup-LogsDirectory
 
-    # Extract app name from config
+    # Extract app name from selected environment config
     $appName = "jppt"  # Default fallback
-    if (Test-Path "config/default.yaml") {
-        $nameMatch = Select-String -Path "config/default.yaml" -Pattern '^\s*name:\s*"([^"]+)"' | Select-Object -First 1
+    $configPath = "config/$Env.yaml"
+    if (Test-Path $configPath) {
+        $nameMatch = Select-String -Path $configPath -Pattern '^\s*name:\s*"([^"]+)"' | Select-Object -First 1
         if ($nameMatch) {
             $appName = $nameMatch.Matches.Groups[1].Value
         }

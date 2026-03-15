@@ -288,10 +288,12 @@ function Update-ProjectName {
     try {
         Set-Location $TargetDir
 
-        # 1. Update config/default.yaml
-        if (Test-Path "config/default.yaml") {
-            (Get-Content "config/default.yaml") -replace 'name: ".*"', "name: `"$AppName`"" | Set-Content "config/default.yaml"
-            Print-Success "Updated config/default.yaml"
+        # 1. Update config files used by generated projects
+        foreach ($configFile in @("config/dev.yaml", "config/dev.yaml.example", "config/prod.yaml.example")) {
+            if (Test-Path $configFile) {
+                (Get-Content $configFile) -replace 'name: ".*"', "name: `"$AppName`"" | Set-Content $configFile
+                Print-Success "Updated $configFile"
+            }
         }
 
         # 2. Update pyproject.toml
@@ -331,7 +333,7 @@ uv run mypy src/              # Type check
         Print-Success "Created README.md"
 
         # Commit the substitutions
-        git add config/default.yaml pyproject.toml README.md 2>&1 | Out-Null
+        git add config/dev.yaml config/dev.yaml.example config/prod.yaml.example pyproject.toml README.md 2>&1 | Out-Null
         git commit -m "chore: update project name to $AppName" 2>&1 | Out-Null
 
         return $true

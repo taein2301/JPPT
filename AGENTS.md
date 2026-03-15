@@ -72,8 +72,8 @@ JPPT/
 │   ├── test_core/              # Tests for business logic
 │   └── test_integration.py    # Integration tests (uses httpbin.org)
 ├── config/                     # YAML configuration files
-│   ├── default.yaml            # Base config (committed)
-│   └── dev.yaml.example        # Dev override template (committed)
+│   ├── dev.yaml.example        # Dev config template (committed)
+│   └── prod.yaml.example       # Prod config template (committed)
 ├── scripts/                    # Project generation scripts
 │   ├── create_app.sh           # Create new project from template (Linux/macOS)
 │   └── create_app.ps1          # Create new project from template (Windows)
@@ -238,7 +238,7 @@ See the [KAVS project](https://github.com/taein2301/kavs) for a real-world examp
 ## Common Pitfalls
 
 - Always run `uv sync --dev` after pulling — this project uses uv, not pip
-- The config system requires `config/default.yaml` to exist; missing it raises `ConfigurationError`
+- The config system requires `config/{env}.yaml` to exist; create it from the matching `.example` file first
 - `HttpClient` must be used as an async context manager (`async with`) or you'll get `"Client not initialized"` errors
 - mypy is in strict mode: forgetting type annotations will fail the pre-commit hook
 - Test coverage must stay at or above 80% — new code without tests will fail CI

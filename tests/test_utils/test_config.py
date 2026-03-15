@@ -39,35 +39,7 @@ def test_settings_default_values() -> None:
 
 def test_load_config_complete(tmp_path: Path) -> None:
     """Test loading complete environment config."""
-    default_file = tmp_path / "default.yaml"
-    default_file.write_text(
-        """
-app:
-  name: "base"
-  version: "0.0.1"
-  debug: false
-logging:
-  level: "INFO"
-  format: "base format"
-  json_logs: false
-  rotation: "00:00"
-  retention: "10 days"
-telegram:
-  enabled: false
-  bot_token: ""
-  chat_id: ""
-api:
-  host: "127.0.0.1"
-  port: 8100
-  reload: false
-  docs_enabled: true
-  cors_origins:
-    - "http://localhost:3000"
-"""
-    )
-
-    dev_file = tmp_path / "dev.yaml"
-    dev_file.write_text(
+    (tmp_path / "dev.yaml").write_text(
         """
 app:
   name: "test"
@@ -93,66 +65,29 @@ api:
     assert config.logging.level == "DEBUG"
     assert config.logging.json_logs is False
     assert config.app.name == "test"
-    assert config.app.version == "0.0.1"
-    assert config.api.host == "127.0.0.1"
+    assert config.app.version == "0.1.0"
+    assert config.api.host == "0.0.0.0"
     assert config.api.port == 9100
     assert config.api.reload is True
-    assert config.api.cors_origins == ["http://localhost:3000"]
+    assert config.api.cors_origins == []
 
 
 def test_load_config_missing_file(tmp_path: Path) -> None:
     """Test error when config file is missing."""
-    (tmp_path / "default.yaml").write_text("app:\n  name: base\n")
-
     with pytest.raises(ConfigurationError, match="Config file not found"):
-        load_config(env="dev", config_dir=tmp_path)
-
-
-def test_load_config_missing_default_file(tmp_path: Path) -> None:
-    """기본 설정 파일이 없으면 예외가 발생해야 한다."""
-    (tmp_path / "dev.yaml").write_text("app:\n  name: test\n")
-
-    with pytest.raises(ConfigurationError, match="Default config file not found"):
         load_config(env="dev", config_dir=tmp_path)
 
 
 def test_load_config_with_telegram_silent_time(tmp_path: Path) -> None:
     """텔레그램 silent time 설정을 로드해야 한다."""
-    default_file = tmp_path / "default.yaml"
-    default_file.write_text(
+    (tmp_path / "dev.yaml").write_text(
         """
-app:
-  name: "base"
-  version: "0.0.1"
-  debug: false
-logging:
-  level: "INFO"
-  format: "base format"
-  json_logs: false
-  rotation: "00:00"
-  retention: "10 days"
 telegram:
   enabled: true
   bot_token: "token"
   chat_id: "chat"
   silent_time:
     enabled: true
-    start: "23:00"
-    end: "08:00"
-    timezone: "Asia/Seoul"
-api:
-  host: "127.0.0.1"
-  port: 8100
-  reload: false
-  docs_enabled: true
-  cors_origins: []
-"""
-    )
-    dev_file = tmp_path / "dev.yaml"
-    dev_file.write_text(
-        """
-telegram:
-  silent_time:
     start: "22:30"
 """
     )
@@ -167,19 +102,8 @@ telegram:
 
 def test_load_config_allows_unknown_timezone_when_silent_time_disabled(tmp_path: Path) -> None:
     """silent time이 비활성화면 타임존 검증을 건너뛰어야 한다."""
-    default_file = tmp_path / "default.yaml"
-    default_file.write_text(
+    (tmp_path / "dev.yaml").write_text(
         """
-app:
-  name: "base"
-  version: "0.0.1"
-  debug: false
-logging:
-  level: "INFO"
-  format: "base format"
-  json_logs: false
-  rotation: "00:00"
-  retention: "10 days"
 telegram:
   enabled: true
   bot_token: "token"
@@ -189,16 +113,8 @@ telegram:
     start: "23:00"
     end: "08:00"
     timezone: "Invalid/Timezone"
-api:
-  host: "127.0.0.1"
-  port: 8100
-  reload: false
-  docs_enabled: true
-  cors_origins: []
 """
     )
-    dev_file = tmp_path / "dev.yaml"
-    dev_file.write_text("")
 
     config = load_config(env="dev", config_dir=tmp_path)
 
@@ -208,19 +124,8 @@ api:
 
 def test_load_config_rejects_unknown_timezone_when_silent_time_enabled(tmp_path: Path) -> None:
     """silent time이 활성화면 유효한 타임존이어야 한다."""
-    default_file = tmp_path / "default.yaml"
-    default_file.write_text(
+    (tmp_path / "dev.yaml").write_text(
         """
-app:
-  name: "base"
-  version: "0.0.1"
-  debug: false
-logging:
-  level: "INFO"
-  format: "base format"
-  json_logs: false
-  rotation: "00:00"
-  retention: "10 days"
 telegram:
   enabled: true
   bot_token: "token"
@@ -230,16 +135,8 @@ telegram:
     start: "23:00"
     end: "08:00"
     timezone: "Invalid/Timezone"
-api:
-  host: "127.0.0.1"
-  port: 8100
-  reload: false
-  docs_enabled: true
-  cors_origins: []
 """
     )
-    dev_file = tmp_path / "dev.yaml"
-    dev_file.write_text("")
 
     with pytest.raises(ValueError, match="Timezone must be a valid IANA timezone"):
         load_config(env="dev", config_dir=tmp_path)

@@ -40,12 +40,12 @@ This will:
 
 ### 2. Configure Your Application
 
-Configuration uses a layered system:
-1. `config/default.yaml` — Base values (committed, project name set by `create_app.sh`)
-2. `config/dev.yaml` — Dev overrides (gitignored, auto-created by `create_app.sh`)
+Configuration uses environment-specific files directly:
+1. `config/dev.yaml` — Dev runtime config (gitignored, auto-created by `create_app.sh`)
+2. `config/prod.yaml` — Prod runtime config (gitignored, create from example as needed)
 3. Environment variables — Final overrides for secrets
 
-Edit `config/dev.yaml` to override defaults:
+Edit `config/dev.yaml` directly:
 
 ```yaml
 app:
@@ -61,7 +61,7 @@ telegram:
 **Telegram setup:** The `create_app.sh` script includes an interactive Telegram setup that:
 - Asks for your Bot Token (from [@BotFather](https://t.me/BotFather))
 - Auto-fetches available Chat IDs via Telegram API
-- Saves settings directly to `config/default.yaml`
+- Saves settings directly to `config/dev.yaml`
 
 Alternatively, override via environment variables:
 ```bash
@@ -257,7 +257,7 @@ logger.exception("Error with traceback")
 
 ### Telegram Notifications
 
-Telegram settings are configured during `create_app.sh` (interactive setup saves to `config/default.yaml`)
+Telegram settings are configured during `create_app.sh` (interactive setup saves to `config/dev.yaml`)
 or via environment variables (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`).
 
 ```python
@@ -321,15 +321,14 @@ uv run ptw tests/
 
 ## Configuration Management
 
-### Layered Configuration
+### Environment Configuration
 
-1. `config/default.yaml` - Base values and schema (committed to git)
-2. `config/{env}.yaml` - Environment overrides (gitignored)
-3. Environment variables - Final overrides for secrets (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`)
+1. `config/{env}.yaml` - Selected runtime config file (gitignored)
+2. Environment variables - Final overrides for secrets (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`)
 
 ### Adding New Settings
 
-1. Update `config/default.yaml`:
+1. Update `config/dev.yaml.example` and `config/prod.yaml.example`:
 
 ```yaml
 my_feature:

@@ -62,6 +62,26 @@ class TelegramConfig(BaseModel):
     silent_time: "TelegramSilentTimeConfig" = Field(
         default_factory=lambda: TelegramSilentTimeConfig()
     )
+    templates: "TelegramMessageTemplateConfig" = Field(
+        default_factory=lambda: TelegramMessageTemplateConfig()
+    )
+
+
+class TelegramMessageTemplateConfig(BaseModel):
+    """텔레그램 메시지 템플릿 설정.
+
+    Attributes:
+        error_alert: 오류 알림 템플릿
+    """
+
+    error_alert: str = Field(
+        default=(
+            "🚨 **Error Alert**\n\n"
+            "{context_section}"
+            "**Error:** `{error_type}`\n"
+            "**Message:** {error_message}"
+        )
+    )
 
 
 class TelegramSilentTimeConfig(BaseModel):

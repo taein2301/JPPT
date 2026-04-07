@@ -45,6 +45,7 @@ async def run_app(settings: Settings) -> None:
         chat_id=settings.telegram.chat_id,
         enabled=settings.telegram.enabled,
         silent_time=settings.telegram.silent_time,
+        templates=settings.telegram.templates,
     )
 
     # 시작 알림 전송

@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from telegram.error import TimedOut
 
-from src.utils.config import TelegramSilentTimeConfig
+from src.utils.config import TelegramMessageTemplateConfig, TelegramSilentTimeConfig
 from src.utils.telegram import TelegramNotifier
 
 
@@ -108,4 +108,60 @@ async def test_telegram_send_message_allows_outside_silent_time() -> None:
     assert result is True
     mock_bot.send_message.assert_called_once_with(
         chat_id="12345", text="test message", parse_mode="Markdown"
+    )
+
+
+@pytest.mark.asyncio
+async def test_telegram_send_template_renders_message() -> None:
+    with patch("src.utils.telegram.Bot") as mock_bot_class:
+        mock_bot = AsyncMock()
+        mock_bot_class.return_value = mock_bot
+
+        notifier = TelegramNotifier(bot_token="test-token", chat_id="12345", enabled=True)
+        result = await notifier.send_template("안녕하세요 {name}", name="JPPT")
+
+    assert result is True
+    mock_bot.send_message.assert_called_once_with(
+        chat_id="12345", text="안녕하세요 JPPT", parse_mode="Markdown"
+    )
+
+
+@pytest.mark.asyncio
+async def test_telegram_send_template_returns_false_when_missing_key() -> None:
+    with (
+        patch("src.utils.telegram.Bot") as mock_bot_class,
+        patch("src.utils.telegram.logger.error") as mock_error,
+    ):
+        mock_bot = AsyncMock()
+        mock_bot_class.return_value = mock_bot
+
+        notifier = TelegramNotifier(bot_token="test-token", chat_id="12345", enabled=True)
+        result = await notifier.send_template("안녕하세요 {name}")
+
+    assert result is False
+    mock_error.assert_called_once()
+    mock_bot.send_message.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_telegram_send_error_uses_template() -> None:
+    with patch("src.utils.telegram.Bot") as mock_bot_class:
+        mock_bot = AsyncMock()
+        mock_bot_class.return_value = mock_bot
+        notifier = TelegramNotifier(
+            bot_token="test-token",
+            chat_id="12345",
+            enabled=True,
+            templates=TelegramMessageTemplateConfig(
+                error_alert="에러={error_type}, 메시지={error_message}, 컨텍스트={context}"
+            ),
+        )
+
+        result = await notifier.send_error(ValueError("실패"), context="배치 실행")
+
+    assert result is True
+    mock_bot.send_message.assert_called_once_with(
+        chat_id="12345",
+        text="에러=ValueError, 메시지=실패, 컨텍스트=배치 실행",
+        parse_mode="Markdown",
     )

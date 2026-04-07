@@ -100,6 +100,24 @@ telegram:
     assert config.telegram.silent_time.timezone == "Asia/Seoul"
 
 
+def test_load_config_with_telegram_templates(tmp_path: Path) -> None:
+    """텔레그램 템플릿 설정을 로드해야 한다."""
+    (tmp_path / "dev.yaml").write_text(
+        """
+telegram:
+  enabled: true
+  bot_token: "token"
+  chat_id: "chat"
+  templates:
+    error_alert: "오류={error_type}, 메시지={error_message}"
+"""
+    )
+
+    config = load_config(env="dev", config_dir=tmp_path)
+
+    assert config.telegram.templates.error_alert == "오류={error_type}, 메시지={error_message}"
+
+
 def test_load_config_allows_unknown_timezone_when_silent_time_disabled(tmp_path: Path) -> None:
     """silent time이 비활성화면 타임존 검증을 건너뛰어야 한다."""
     (tmp_path / "dev.yaml").write_text(

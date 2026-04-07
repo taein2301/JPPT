@@ -11,7 +11,7 @@ from loguru import logger
 from telegram import Bot
 from telegram.error import TimedOut
 
-from src.utils.config import TelegramSilentTimeConfig
+from src.utils.config import TelegramMessageTemplateConfig, TelegramSilentTimeConfig
 
 
 class TelegramNotifier:
@@ -31,6 +31,7 @@ class TelegramNotifier:
         chat_id: str,
         enabled: bool = True,
         silent_time: TelegramSilentTimeConfig | None = None,
+        templates: TelegramMessageTemplateConfig | None = None,
         now_provider: Callable[[], datetime] | None = None,
     ) -> None:
         """텔레그램 알림 전송기를 초기화합니다.
@@ -40,12 +41,14 @@ class TelegramNotifier:
             chat_id: 텔레그램 채팅방 ID
             enabled: 알림 활성화 여부
             silent_time: 무음 시간 설정
+            templates: 메시지 템플릿 설정
             now_provider: 현재 시각 주입 함수 (테스트용)
         """
         self.enabled = enabled
         self.chat_id = chat_id
         self._bot: Bot | None = None
         self._silent_time = silent_time or TelegramSilentTimeConfig()
+        self._templates = templates or TelegramMessageTemplateConfig()
         self._now_provider = now_provider or self._default_now_provider
 
         if enabled and bot_token:
@@ -126,6 +129,27 @@ class TelegramNotifier:
             # 예외를 발생시키지 않음 - 알림 실패가 앱을 중단해서는 안 됨
             return False
 
+    async def send_template(
+        self,
+        template: str,
+        parse_mode: str = "Markdown",
+        **kwargs: str,
+    ) -> bool:
+        """템플릿 문자열에 값을 채워 텔레그램 메시지를 전송합니다.
+
+        Args:
+            template: Python format 문자열 템플릿
+            parse_mode: 파싱 모드 (Markdown, HTML)
+            **kwargs: 템플릿 치환 값
+        """
+        try:
+            message = template.format(**kwargs)
+        except KeyError as exc:
+            logger.error("Telegram template rendering failed: missing key {}", exc.args[0])
+            return False
+
+        return await self.send_message(message=message, parse_mode=parse_mode)
+
     async def send_error(self, error: Exception, context: str = "") -> bool:
         """오류 발생 알림을 텔레그램으로 전송합니다.
 
@@ -133,10 +157,11 @@ class TelegramNotifier:
             error: 발생한 예외
             context: 오류에 대한 추가 컨텍스트 정보
         """
-        message = "🚨 **Error Alert**\n\n"
-        if context:
-            message += f"**Context:** {context}\n\n"
-        message += f"**Error:** `{type(error).__name__}`\n"
-        message += f"**Message:** {str(error)}"
-
-        return await self.send_message(message)
+        context_section = f"**Context:** {context}\n\n" if context else ""
+        return await self.send_template(
+            template=self._templates.error_alert,
+            context=context,
+            context_section=context_section,
+            error_type=type(error).__name__,
+            error_message=str(error),
+        )

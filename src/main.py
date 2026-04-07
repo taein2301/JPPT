@@ -61,6 +61,49 @@ def _resolve_log_level(config_level: str, log_level: str | None, verbose: bool) 
     return config_level
 
 
+def _load_settings(env: str, config: str | None) -> Settings:
+    """CLI 옵션에 따라 설정을 로드합니다."""
+    if config:
+        config_dir = Path(config).parent
+        return load_config(env=env, config_dir=config_dir)
+    return load_config(env=env)
+
+
+def _build_log_file(app_name: str, suffix: str = "") -> Path:
+    """실행 모드별 로그 파일 경로를 생성합니다."""
+    return Path.home() / "logs" / f"{app_name}{suffix}.log"
+
+
+def _configure_runtime(
+    *,
+    mode: str,
+    env: str,
+    settings: Settings,
+    log_level: str | None,
+    verbose: bool,
+    log_suffix: str = "",
+) -> Settings:
+    """로거를 초기화하고 핵심 설정 요약을 남깁니다."""
+    effective_log_level = _resolve_log_level(settings.logging.level, log_level, verbose)
+    log_file = _build_log_file(settings.app.name, log_suffix)
+    setup_logger(
+        level=effective_log_level,
+        log_file=log_file,
+        format_str=settings.logging.format,
+        json_logs=settings.logging.json_logs,
+        rotation=settings.logging.rotation,
+        retention=settings.logging.retention,
+    )
+    _log_loaded_config(
+        mode=mode,
+        env=env,
+        settings=settings,
+        effective_log_level=effective_log_level,
+        log_file=log_file,
+    )
+    return settings
+
+
 def version_callback(value: bool) -> None:
     """버전 정보를 출력하고 종료합니다."""
     if value:
@@ -97,30 +140,13 @@ def start(
     주기적인 작업을 수행하거나 신호를 받을 때까지 계속 실행되는 모드입니다.
     Ctrl+C 또는 SIGTERM 신호로 graceful shutdown이 가능합니다.
     """
-    # 설정 로드 (커스텀 경로 또는 기본 경로)
-    if config:
-        config_dir = Path(config).parent
-        settings = load_config(env=env, config_dir=config_dir)
-    else:
-        settings = load_config(env=env)
-
-    effective_log_level = _resolve_log_level(settings.logging.level, log_level, verbose)
-
-    log_file = Path.home() / "logs" / f"{settings.app.name}.log"
-    setup_logger(
-        level=effective_log_level,
-        log_file=log_file,
-        format_str=settings.logging.format,
-        json_logs=settings.logging.json_logs,
-        rotation=settings.logging.rotation,
-        retention=settings.logging.retention,
-    )
-    _log_loaded_config(
+    settings = _load_settings(env, config)
+    _configure_runtime(
         mode="start",
         env=env,
         settings=settings,
-        effective_log_level=effective_log_level,
-        log_file=log_file,
+        log_level=log_level,
+        verbose=verbose,
     )
 
     logger.info(f"Starting {settings.app.name} in app mode")
@@ -145,30 +171,14 @@ def batch(
     작업을 한 번 실행하고 종료하는 모드입니다.
     cron이나 스케줄러에서 주기적으로 호출하기에 적합합니다.
     """
-    # 설정 로드 (커스텀 경로 또는 기본 경로)
-    if config:
-        config_dir = Path(config).parent
-        settings = load_config(env=env, config_dir=config_dir)
-    else:
-        settings = load_config(env=env)
-
-    effective_log_level = _resolve_log_level(settings.logging.level, log_level, verbose)
-
-    log_file = Path.home() / "logs" / f"{settings.app.name}_batch.log"
-    setup_logger(
-        level=effective_log_level,
-        log_file=log_file,
-        format_str=settings.logging.format,
-        json_logs=settings.logging.json_logs,
-        rotation=settings.logging.rotation,
-        retention=settings.logging.retention,
-    )
-    _log_loaded_config(
+    settings = _load_settings(env, config)
+    _configure_runtime(
         mode="batch",
         env=env,
         settings=settings,
-        effective_log_level=effective_log_level,
-        log_file=log_file,
+        log_level=log_level,
+        verbose=verbose,
+        log_suffix="_batch",
     )
 
     logger.info(f"Starting {settings.app.name} in batch mode")
@@ -207,30 +217,14 @@ def api(
 
     FastAPI 기반 REST API를 실행합니다.
     """
-    # 설정 로드 (커스텀 경로 또는 기본 경로)
-    if config:
-        config_dir = Path(config).parent
-        settings = load_config(env=env, config_dir=config_dir)
-    else:
-        settings = load_config(env=env)
-
-    effective_log_level = _resolve_log_level(settings.logging.level, log_level, verbose)
-
-    log_file = Path.home() / "logs" / f"{settings.app.name}_api.log"
-    setup_logger(
-        level=effective_log_level,
-        log_file=log_file,
-        format_str=settings.logging.format,
-        json_logs=settings.logging.json_logs,
-        rotation=settings.logging.rotation,
-        retention=settings.logging.retention,
-    )
-    _log_loaded_config(
+    settings = _load_settings(env, config)
+    _configure_runtime(
         mode="api",
         env=env,
         settings=settings,
-        effective_log_level=effective_log_level,
-        log_file=log_file,
+        log_level=log_level,
+        verbose=verbose,
+        log_suffix="_api",
     )
 
     logger.info(f"Starting {settings.app.name} in API mode")

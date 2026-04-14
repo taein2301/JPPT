@@ -93,18 +93,6 @@ Copy-Item config/dev.yaml.example config/dev.yaml
 ```bash
 uv run python -m src.main start --env dev
 uv run python -m src.main batch --env dev
-uv run python -m src.main api --env dev --port 8000
-```
-
-### API 사용
-
-```bash
-curl http://localhost:8000/health
-curl http://localhost:8000/ready
-curl -X POST http://localhost:8000/jobs \
-  -H "Content-Type: application/json" \
-  -H "X-Request-ID: sample-request" \
-  -d '{"name": "sample", "payload": {"foo": "bar"}}'
 ```
 
 ### 개발 명령어
@@ -129,14 +117,11 @@ uv run pre-commit run --all-files
 src/
 ├── main.py              # CLI 진입점
 ├── core/                # 비즈니스 로직
-├── api/                 # FastAPI 애플리케이션 레이어
-│   └── app.py           # FastAPI 앱 팩토리
 └── utils/               # 재사용 가능한 유틸리티
     ├── config.py        # 설정 관리 (Pydantic)
     ├── logger.py        # 로깅 설정 (Loguru)
     ├── app_runner.py    # App 모드 (데몬)
     ├── batch_runner.py  # Batch 모드 (일회성)
-    ├── api_runner.py    # API 모드 서버 실행기
     ├── exceptions.py    # 커스텀 예외 계층
     ├── retry.py         # 재시도 데코레이터 (tenacity)
     ├── signals.py       # Graceful Shutdown
@@ -181,17 +166,6 @@ telegram:
   enabled: false
   bot_token: ""
   chat_id: ""
-
-api:
-  host: "0.0.0.0"
-  port: 8000
-  reload: true
-  docs_enabled: true
-  cors_origins:
-    - "http://localhost:3000"
-  trusted_hosts:
-    - "localhost"
-    - "127.0.0.1"
 ```
 
 커밋되는 템플릿은 `config/dev.yaml.example`, `config/prod.yaml.example`이고, 실행 전에는 이를 `config/{env}.yaml`로 복사해 사용합니다.
@@ -210,13 +184,11 @@ api:
    # Linux/macOS
    export TELEGRAM__BOT_TOKEN="your-token"
    export TELEGRAM__CHAT_ID="your-chat-id"
-   export API__PORT="9000"
    ```
    ```powershell
    # Windows (PowerShell)
    $env:TELEGRAM__BOT_TOKEN="your-token"
    $env:TELEGRAM__CHAT_ID="your-chat-id"
-   $env:API__PORT="9000"
    ```
 
 ### 환경별 설정

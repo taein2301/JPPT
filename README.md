@@ -93,18 +93,6 @@ Copy-Item config/dev.yaml.example config/dev.yaml
 ```bash
 uv run python -m src.main start --env dev
 uv run python -m src.main batch --env dev
-uv run python -m src.main api --env dev --port 8000
-```
-
-### API 사용
-
-```bash
-curl http://localhost:8000/health
-curl http://localhost:8000/ready
-curl -X POST http://localhost:8000/jobs \
-  -H "Content-Type: application/json" \
-  -H "X-Request-ID: sample-request" \
-  -d '{"name": "sample", "payload": {"foo": "bar"}}'
 ```
 
 ### Development Commands
@@ -209,8 +197,6 @@ flowchart TD
 src/
 ├── main.py              # CLI entry point
 ├── core/                # Business logic
-├── api/                 # FastAPI application layer
-│   └── app.py           # FastAPI app factory
 └── utils/               # Reusable utilities
     ├── config.py        # Settings management (Pydantic)
     ├── logger.py        # Logging setup (Loguru)
@@ -260,17 +246,6 @@ telegram:
   enabled: false
   bot_token: ""
   chat_id: ""
-
-api:
-  host: "0.0.0.0"
-  port: 8000
-  reload: true
-  docs_enabled: true
-  cors_origins:
-    - "http://localhost:3000"
-  trusted_hosts:
-    - "localhost"
-    - "127.0.0.1"
 ```
 
 Committed templates live in `config/dev.yaml.example` and `config/prod.yaml.example`; copy one to `config/{env}.yaml` before running.
@@ -289,13 +264,11 @@ Telegram can be configured in two ways:
    # Linux/macOS
    export TELEGRAM__BOT_TOKEN="your-token"
    export TELEGRAM__CHAT_ID="your-chat-id"
-   export API__PORT="9000"
    ```
    ```powershell
    # Windows (PowerShell)
    $env:TELEGRAM__BOT_TOKEN="your-token"
    $env:TELEGRAM__CHAT_ID="your-chat-id"
-   $env:API__PORT="9000"
    ```
 
 ### Environment-Specific Config

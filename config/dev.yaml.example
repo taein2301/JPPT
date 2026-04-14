@@ -25,14 +25,3 @@ telegram:
 
       {context_section}**Error:** `{error_type}`
       **Message:** {error_message}
-
-api:
-  host: "127.0.0.1"
-  port: 8000
-  reload: true
-  docs_enabled: true
-  cors_origins:
-    - "http://localhost:3000"
-  trusted_hosts:
-    - "localhost"
-    - "127.0.0.1"

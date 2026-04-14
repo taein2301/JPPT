@@ -122,28 +122,6 @@ class TelegramSilentTimeConfig(BaseModel):
         return self
 
 
-class ApiConfig(BaseModel):
-    """FastAPI 서버 설정.
-
-    Attributes:
-        host: 서버 바인딩 호스트
-        port: 서버 포트
-        reload: 개발용 자동 리로드 여부
-        docs_enabled: Swagger/OpenAPI 문서 노출 여부
-        cors_origins: 허용할 CORS Origin 목록
-        trusted_hosts: 허용할 Host 헤더 목록
-        root_path: 프록시 환경에서 사용할 루트 경로
-    """
-
-    host: str = Field(default="0.0.0.0")
-    port: int = Field(default=8000)
-    reload: bool = Field(default=False)
-    docs_enabled: bool = Field(default=True)
-    cors_origins: list[str] = Field(default_factory=list)
-    trusted_hosts: list[str] = Field(default_factory=lambda: ["*"])
-    root_path: str = Field(default="")
-
-
 class Settings(BaseSettings):
     """YAML 파일에서 로드된 애플리케이션 전체 설정.
 
@@ -151,7 +129,6 @@ class Settings(BaseSettings):
         app: 애플리케이션 기본 설정
         logging: 로깅 설정
         telegram: 텔레그램 연동 설정
-        api: FastAPI 서버 설정
     """
 
     model_config = SettingsConfigDict(
@@ -162,7 +139,6 @@ class Settings(BaseSettings):
     app: AppConfig = Field(default_factory=AppConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     telegram: TelegramConfig = Field(default_factory=TelegramConfig)
-    api: ApiConfig = Field(default_factory=ApiConfig)
 
 
 def load_config(env: str = "dev", config_dir: Path | None = None) -> Settings:

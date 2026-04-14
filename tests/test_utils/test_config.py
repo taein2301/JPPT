@@ -32,9 +32,7 @@ def test_settings_default_values() -> None:
     assert settings.app.debug is False
     assert settings.logging.level == "INFO"
     assert settings.logging.json_logs is False
-    assert settings.api.host == "0.0.0.0"
-    assert settings.api.port == 8000
-    assert settings.api.docs_enabled is True
+    assert not hasattr(settings, "api")
 
 
 def test_load_config_complete(tmp_path: Path) -> None:
@@ -54,9 +52,6 @@ telegram:
   enabled: false
   bot_token: ""
   chat_id: ""
-api:
-  port: 9100
-  reload: true
 """
     )
 
@@ -66,10 +61,7 @@ api:
     assert config.logging.json_logs is False
     assert config.app.name == "test"
     assert config.app.version == "0.1.0"
-    assert config.api.host == "0.0.0.0"
-    assert config.api.port == 9100
-    assert config.api.reload is True
-    assert config.api.cors_origins == []
+    assert not hasattr(config, "api")
 
 
 def test_load_config_missing_file(tmp_path: Path) -> None:

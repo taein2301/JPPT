@@ -25,12 +25,3 @@ telegram:
 
       {context_section}**Error:** `{error_type}`
       **Message:** {error_message}
-
-api:
-  host: "0.0.0.0"
-  port: 8000
-  reload: false
-  docs_enabled: false
-  cors_origins: []
-  trusted_hosts:
-    - "example.com"

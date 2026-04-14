@@ -333,7 +333,7 @@ uv run mypy src/              # Type check
         Print-Success "Created README.md"
 
         # Commit the substitutions
-        git add config/dev.yaml config/dev.yaml.example config/prod.yaml.example pyproject.toml README.md 2>&1 | Out-Null
+        git add -f config/dev.yaml config/dev.yaml.example config/prod.yaml.example pyproject.toml README.md 2>&1 | Out-Null
         git commit -m "chore: update project name to $AppName" 2>&1 | Out-Null
 
         return $true

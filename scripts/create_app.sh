@@ -323,7 +323,7 @@ EOF
     print_success "Created docs/PRD.md"
 
     # Commit the substitutions
-    git add config/dev.yaml config/dev.yaml.example config/prod.yaml.example pyproject.toml README.md docs/PRD.md
+    git add -f config/dev.yaml config/dev.yaml.example config/prod.yaml.example pyproject.toml README.md docs/PRD.md
     git commit -m "chore: update project name to $app_name"
 
     return 0

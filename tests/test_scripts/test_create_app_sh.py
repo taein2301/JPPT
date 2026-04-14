@@ -621,6 +621,162 @@ def test_create_app_creates_dev_config_and_sends_telegram_sample(tmp_path: Path)
     assert "sample-app create 성공" in curl_args
 
 
+def test_create_app_force_adds_ignored_dev_config(tmp_path: Path) -> None:
+    """create_app.sh should force-add ignored dev config during project-name commit."""
+    source_repo = Path(__file__).resolve().parents[2]
+    repo_root = tmp_path / "JPPT"
+    shutil.copytree(
+        source_repo,
+        repo_root,
+        ignore=shutil.ignore_patterns(
+            ".git",
+            ".venv",
+            "__pycache__",
+            ".pytest_cache",
+            ".mypy_cache",
+            ".ruff_cache",
+            "htmlcov",
+        ),
+    )
+    project_dir = tmp_path / "sample-app"
+    fakebin = tmp_path / "fakebin"
+    fakebin.mkdir()
+    git_log = tmp_path / "git.log"
+
+    _write_executable(
+        fakebin / "python3",
+        "#!/usr/bin/env bash\n"
+        "echo 'Python 3.11.9'\n",
+    )
+    _write_executable(
+        fakebin / "uv",
+        "#!/usr/bin/env bash\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo 'uv 0.7.0'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"sync\" ] || [ \"$1\" = \"run\" ]; then\n"
+        "  exit 0\n"
+        "fi\n"
+        "exit 0\n",
+    )
+    _write_executable(
+        fakebin / "gh",
+        "#!/usr/bin/env bash\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo 'gh version 2.87.3'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"auth\" ] && [ \"$2\" = \"status\" ]; then\n"
+        "  echo 'github.com'\n"
+        "  echo '  ✓ Logged in to github.com account stub-user (GITHUB_TOKEN)'\n"
+        "  echo '  - Active account: true'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"user\" ]; then\n"
+        "  echo 'stub-user'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"repo\" ] && [ \"$2\" = \"view\" ] \\\n"
+        "  && [ \"$3\" = 'stub-user/sample-app' ]; then\n"
+        "  exit 1\n"
+        "fi\n"
+        "if [ \"$1\" = \"repo\" ] && [ \"$2\" = \"create\" ]; then\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"repo\" ] && [ \"$2\" = \"view\" ] && [ \"$3\" = \"--json\" ]; then\n"
+        "  echo 'https://github.com/stub-user/sample-app'\n"
+        "  exit 0\n"
+        "fi\n"
+        "exit 0\n",
+    )
+    _write_executable(
+        fakebin / "git",
+        f"#!{sys.executable}\n"
+        "from __future__ import annotations\n"
+        "import os\n"
+        "import sys\n"
+        "from pathlib import Path\n"
+        "\n"
+        "log_path = Path(os.environ['TEST_GIT_LOG'])\n"
+        "args = sys.argv[1:]\n"
+        "with log_path.open('a', encoding='utf-8') as fh:\n"
+        "    fh.write(' '.join(args) + '\\n')\n"
+        "if not args:\n"
+        "    raise SystemExit(0)\n"
+        "if args[0] == 'init':\n"
+        "    Path('.git').mkdir(exist_ok=True)\n"
+        "    raise SystemExit(0)\n"
+        "if args[0] == 'add':\n"
+        "    if 'config/dev.yaml' in args and '-f' not in args:\n"
+        "        sys.stderr.write('The following paths are ignored by one of your .gitignore files:\\nconfig/dev.yaml\\n')\n"
+        "        raise SystemExit(1)\n"
+        "    raise SystemExit(0)\n"
+        "if args[0] == 'commit':\n"
+        "    raise SystemExit(0)\n"
+        "raise SystemExit(0)\n",
+    )
+    _write_executable(
+        fakebin / "rsync",
+        f"#!{sys.executable}\n"
+        "from __future__ import annotations\n"
+        "import shutil\n"
+        "import sys\n"
+        "from pathlib import Path\n"
+        "\n"
+        "args = sys.argv[1:]\n"
+        "src = Path(args[-2]).resolve()\n"
+        "dst = Path(args[-1]).resolve()\n"
+        "exclude_names = set()\n"
+        "exclude_paths = set()\n"
+        "for arg in args[:-2]:\n"
+        "    if not arg.startswith('--exclude='):\n"
+        "        continue\n"
+        "    pattern = arg.split('=', 1)[1]\n"
+        "    if pattern.endswith('/'):\n"
+        "        exclude_names.add(pattern.rstrip('/'))\n"
+        "    else:\n"
+        "        exclude_paths.add(pattern)\n"
+        "for item in src.rglob('*'):\n"
+        "    rel = item.relative_to(src)\n"
+        "    rel_str = rel.as_posix()\n"
+        "    if any(part in exclude_names for part in rel.parts):\n"
+        "        continue\n"
+        "    if rel_str in exclude_paths or rel.name.endswith('.pyc'):\n"
+        "        continue\n"
+        "    target = dst / rel\n"
+        "    if item.is_dir():\n"
+        "        target.mkdir(parents=True, exist_ok=True)\n"
+        "    else:\n"
+        "        target.parent.mkdir(parents=True, exist_ok=True)\n"
+        "        shutil.copy2(item, target)\n"
+        "sys.exit(0)\n",
+    )
+
+    env = os.environ.copy()
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+    env["SHELL"] = shutil.which("true") or "/usr/bin/true"
+    env["TEST_GIT_LOG"] = str(git_log)
+
+    result = subprocess.run(
+        ["bash", "scripts/create_app.sh", "sample-app", "--skip-tests", "--no-hooks"],
+        cwd=repo_root,
+        env=env,
+        input="\n",
+        text=True,
+        capture_output=True,
+        timeout=60,
+    )
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert project_dir.exists()
+    git_calls = git_log.read_text(encoding="utf-8")
+    assert (
+        "add -f config/dev.yaml config/dev.yaml.example config/prod.yaml.example "
+        "pyproject.toml README.md docs/PRD.md" in git_calls
+    )
+
+
 def test_create_app_accepts_spaced_telegram_success_response(tmp_path: Path) -> None:
     """create_app.sh should treat spaced Telegram JSON success as successful."""
     source_repo = Path(__file__).resolve().parents[2]

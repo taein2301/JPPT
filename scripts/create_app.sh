@@ -545,7 +545,7 @@ setup_telegram_optional() {
 
             sed -i.bak "s/bot_token: \"\"/bot_token: \"$bot_token\"/" config/dev.yaml
             sed -i.bak "s/chat_id: \"\"/chat_id: \"$selected_chat_id\"/" config/dev.yaml
-            sed -i.bak "0,/enabled: false/s//enabled: true/" config/dev.yaml
+            perl -0pi.bak -e 's/(telegram:\n\s+enabled: )false/${1}true/' config/dev.yaml
             rm -f config/dev.yaml.bak
 
             print_success "Telegram settings saved to config/dev.yaml!"

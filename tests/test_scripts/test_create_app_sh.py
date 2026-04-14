@@ -616,6 +616,10 @@ def test_create_app_creates_dev_config_and_sends_telegram_sample(tmp_path: Path)
 
     assert result.returncode == 0, result.stderr + result.stdout
     assert (project_dir / "config" / "dev.yaml").exists()
+    dev_config = (project_dir / "config" / "dev.yaml").read_text(encoding="utf-8")
+    assert 'enabled: true' in dev_config
+    assert 'bot_token: "test-bot-token"' in dev_config
+    assert 'chat_id: "123456"' in dev_config
     curl_args = curl_log.read_text(encoding="utf-8")
     assert "sendMessage" in curl_args
     assert "sample-app create 성공" in curl_args

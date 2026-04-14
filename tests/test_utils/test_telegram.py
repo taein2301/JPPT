@@ -165,3 +165,13 @@ async def test_telegram_send_error_uses_template() -> None:
         text="에러=ValueError, 메시지=실패, 컨텍스트=배치 실행",
         parse_mode="Markdown",
     )
+
+
+def test_format_status_message_with_env() -> None:
+    message = TelegramNotifier.format_status_message("j-upbit", "start", env="prod")
+    assert message == "[j-upbit] start\nEnv : prod"
+
+
+def test_format_status_message_with_reason() -> None:
+    message = TelegramNotifier.format_status_message("j-upbit", "stop", reason="gracefully")
+    assert message == "[j-upbit] stop\nReason : gracefully"

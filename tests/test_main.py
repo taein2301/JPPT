@@ -10,6 +10,13 @@ from src.main import app
 runner = CliRunner()
 
 
+def _capture_coroutine(mock_asyncio_run: AsyncMock):
+    """asyncio.run에 전달된 코루틴을 반환하고 테스트 종료 시 닫도록 합니다."""
+    coroutine = mock_asyncio_run.call_args.args[0]
+    assert coroutine.cr_frame is not None
+    return coroutine
+
+
 def test_cli_version() -> None:
     """Test --version flag."""
     from src.utils.config import Settings
@@ -75,6 +82,9 @@ def test_start_command_basic(
     assert any(
         "Loaded config summary" in str(call.args[0]) for call in mock_logger_info.call_args_list
     )
+    coroutine = _capture_coroutine(mock_asyncio_run)
+    assert coroutine.cr_frame.f_locals["env"] == "dev"
+    coroutine.close()
 
 
 @patch("src.main.asyncio.run")
@@ -92,6 +102,7 @@ def test_start_command_with_verbose(
         telegram={"enabled": False},
     )
 
+    mock_asyncio_run.side_effect = lambda coroutine: coroutine.close()
     result = runner.invoke(app, ["start", "--verbose"])
     assert result.exit_code == 0
     # Verify DEBUG level was set due to verbose
@@ -114,6 +125,7 @@ def test_start_command_uses_cli_log_level_override(
         telegram={"enabled": False},
     )
 
+    mock_asyncio_run.side_effect = lambda coroutine: coroutine.close()
     result = runner.invoke(app, ["start", "--log-level", "ERROR"])
     assert result.exit_code == 0
     call_kwargs = mock_setup_logger.call_args[1]
@@ -138,6 +150,9 @@ def test_batch_command_basic(
     result = runner.invoke(app, ["batch", "--env", "dev"])
     assert result.exit_code == 0
     mock_asyncio_run.assert_called_once()
+    coroutine = _capture_coroutine(mock_asyncio_run)
+    assert coroutine.cr_frame.f_locals["env"] == "dev"
+    coroutine.close()
 
 
 @patch("src.main.asyncio.run")
@@ -159,6 +174,7 @@ def test_batch_command_with_custom_config(
     )
 
     custom_config = temp_config_dir / "custom.yaml"
+    mock_asyncio_run.side_effect = lambda coroutine: coroutine.close()
     result = runner.invoke(app, ["batch", "--config", str(custom_config)])
     assert result.exit_code == 0
     # Verify config_dir was passed
@@ -185,6 +201,7 @@ def test_log_file_path_is_in_home_directory(
         telegram={"enabled": False},
     )
 
+    mock_asyncio_run.side_effect = lambda coroutine: coroutine.close()
     result = runner.invoke(app, ["start"])
     assert result.exit_code == 0
 

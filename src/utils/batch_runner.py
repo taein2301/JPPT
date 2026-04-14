@@ -9,7 +9,7 @@ from src.utils.config import Settings
 from src.utils.telegram import TelegramNotifier
 
 
-async def run_batch(settings: Settings) -> None:
+async def run_batch(settings: Settings, env: str) -> None:
     """배치 모드를 실행합니다 (일회성 실행).
 
     이 함수는 템플릿 구현입니다. 실제 비즈니스 로직으로 교체하세요.
@@ -40,7 +40,11 @@ async def run_batch(settings: Settings) -> None:
 
     # 시작 알림 전송
     await notifier.send_message(
-        f"▶️ **{settings.app.name}** batch started\nVersion: {settings.app.version}"
+        TelegramNotifier.format_status_message(
+            settings.app.name,
+            "batch start",
+            env=env,
+        )
     )
 
     try:
@@ -49,7 +53,13 @@ async def run_batch(settings: Settings) -> None:
 
         logger.info("Batch mode completed")
         # 완료 알림
-        await notifier.send_message(f"✅ **{settings.app.name}** batch completed")
+        await notifier.send_message(
+            TelegramNotifier.format_status_message(
+                settings.app.name,
+                "batch completed",
+                reason="completed",
+            )
+        )
     except Exception as e:
         logger.error(f"Batch failed: {e}")
         # 에러 알림

@@ -80,6 +80,31 @@ class TelegramNotifier:
 
         return now >= start or now < end
 
+    @staticmethod
+    def format_status_message(
+        app_name: str,
+        status: str,
+        *,
+        env: str | None = None,
+        reason: str | None = None,
+    ) -> str:
+        """실행 상태 알림 메시지를 지정된 포맷으로 생성합니다.
+
+        Args:
+            app_name: 애플리케이션 이름
+            status: 상태 문자열
+            env: 실행 환경 이름
+            reason: 종료/완료 사유
+        """
+        lines = [f"[{app_name}] {status}"]
+
+        if env is not None:
+            lines.append(f"Env : {env}")
+        if reason is not None:
+            lines.append(f"Reason : {reason}")
+
+        return "\n".join(lines)
+
     async def send_message(
         self,
         message: str,

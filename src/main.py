@@ -156,7 +156,7 @@ def start(
     # 앱 실행 (비동기)
     from src.utils.app_runner import run_app
 
-    asyncio.run(run_app(settings))
+    asyncio.run(run_app(settings, env))
 
 
 @app.command()
@@ -187,7 +187,7 @@ def batch(
     # 배치 실행 (비동기)
     from src.utils.batch_runner import run_batch
 
-    asyncio.run(run_batch(settings))
+    asyncio.run(run_batch(settings, env))
 
 
 @app.command()

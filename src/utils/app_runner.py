@@ -12,16 +12,17 @@ from src.utils.signals import GracefulShutdown, setup_signal_handlers
 from src.utils.telegram import TelegramNotifier
 
 
-async def run_app(settings: Settings) -> None:
+async def run_app(settings: Settings, env: str) -> None:
     """앱 모드를 실행합니다 (graceful shutdown 지원 데몬).
 
     이 함수는 템플릿 구현입니다. 실제 비즈니스 로직으로 교체하세요.
 
     Args:
         settings: 애플리케이션 설정
+        env: 실행 환경 이름
 
     사용 예시:
-        async def run_app(settings: Settings) -> None:
+        async def run_app(settings: Settings, env: str) -> None:
             shutdown = GracefulShutdown()
             setup_signal_handlers(shutdown)
 
@@ -50,7 +51,11 @@ async def run_app(settings: Settings) -> None:
 
     # 시작 알림 전송
     await notifier.send_message(
-        f"🚀 **{settings.app.name}** started\nVersion: {settings.app.version}\nMode: App (daemon)"
+        TelegramNotifier.format_status_message(
+            settings.app.name,
+            "start",
+            env=env,
+        )
     )
 
     # Graceful shutdown 설정
@@ -73,7 +78,13 @@ async def run_app(settings: Settings) -> None:
 
         logger.info("App mode stopped")
         # 정상 종료 알림
-        await notifier.send_message(f"🛑 **{settings.app.name}** stopped gracefully")
+        await notifier.send_message(
+            TelegramNotifier.format_status_message(
+                settings.app.name,
+                "stop",
+                reason="gracefully",
+            )
+        )
     except Exception as e:
         logger.error(f"App crashed: {e}")
         # 에러 알림

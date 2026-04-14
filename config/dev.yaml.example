@@ -21,7 +21,7 @@ telegram:
     timezone: "Asia/Seoul"
   templates:
     error_alert: |
-      🚨 **Error Alert**
+      🚨 Error Alert
 
-      {context_section}**Error:** `{error_type}`
-      **Message:** {error_message}
+      {context_section}Error: {error_type}
+      Message: {error_message}

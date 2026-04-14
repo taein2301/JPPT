@@ -19,7 +19,7 @@ async def test_telegram_send_message() -> None:
         await notifier.send_message("test message")
 
         mock_bot.send_message.assert_called_once_with(
-            chat_id="12345", text="test message", parse_mode="Markdown"
+            chat_id="12345", text="test message", parse_mode=None
         )
 
 
@@ -107,7 +107,7 @@ async def test_telegram_send_message_allows_outside_silent_time() -> None:
 
     assert result is True
     mock_bot.send_message.assert_called_once_with(
-        chat_id="12345", text="test message", parse_mode="Markdown"
+        chat_id="12345", text="test message", parse_mode=None
     )
 
 
@@ -122,7 +122,7 @@ async def test_telegram_send_template_renders_message() -> None:
 
     assert result is True
     mock_bot.send_message.assert_called_once_with(
-        chat_id="12345", text="안녕하세요 JPPT", parse_mode="Markdown"
+        chat_id="12345", text="안녕하세요 JPPT", parse_mode=None
     )
 
 
@@ -163,20 +163,25 @@ async def test_telegram_send_error_uses_template() -> None:
     mock_bot.send_message.assert_called_once_with(
         chat_id="12345",
         text="에러=ValueError, 메시지=실패, 컨텍스트=배치 실행",
-        parse_mode="Markdown",
+        parse_mode=None,
     )
 
 
 def test_format_status_message_with_env() -> None:
     message = TelegramNotifier.format_status_message("j-upbit", "start", env="prod")
-    assert message == "[j-upbit] start\nEnv : prod"
+    assert message == "[j-upbit] 🚀 start\nEnv : prod"
 
 
 def test_format_status_message_with_reason() -> None:
     message = TelegramNotifier.format_status_message("j-upbit", "stop", reason="gracefully")
-    assert message == "[j-upbit] stop\nReason : gracefully"
+    assert message == "[j-upbit] 🛑 stop\nReason : gracefully"
 
 
 def test_format_status_message_wraps_unbracketed_app_name() -> None:
     message = TelegramNotifier.format_status_message("j-bithumb", "start", env="dev")
-    assert message == "[j-bithumb] start\nEnv : dev"
+    assert message == "[j-bithumb] 🚀 start\nEnv : dev"
+
+
+def test_format_status_message_with_batch_status() -> None:
+    message = TelegramNotifier.format_status_message("j-upbit", "batch completed", reason="done")
+    assert message == "[j-upbit] ✅ batch completed\nReason : done"

@@ -100,7 +100,16 @@ class TelegramNotifier:
         if not (display_name.startswith("[") and display_name.endswith("]")):
             display_name = f"[{display_name}]"
 
-        lines = [f"{display_name} {status}"]
+        status_prefixes = {
+            "start": "🚀",
+            "stop": "🛑",
+            "batch start": "📦",
+            "batch completed": "✅",
+        }
+        prefix = status_prefixes.get(status)
+        status_text = f"{prefix} {status}" if prefix else status
+
+        lines = [f"{display_name} {status_text}"]
 
         if env is not None:
             lines.append(f"Env : {env}")
@@ -112,13 +121,13 @@ class TelegramNotifier:
     async def send_message(
         self,
         message: str,
-        parse_mode: str = "Markdown",
+        parse_mode: str | None = None,
     ) -> bool:
         """텔레그램으로 메시지를 전송합니다.
 
         Args:
             message: 전송할 메시지 텍스트
-            parse_mode: 파싱 모드 (Markdown, HTML)
+            parse_mode: 파싱 모드 (plain text, HTML 등)
 
         참고:
             전송 실패 시에도 예외를 발생시키지 않습니다.
@@ -161,14 +170,14 @@ class TelegramNotifier:
     async def send_template(
         self,
         template: str,
-        parse_mode: str = "Markdown",
+        parse_mode: str | None = None,
         **kwargs: str,
     ) -> bool:
         """템플릿 문자열에 값을 채워 텔레그램 메시지를 전송합니다.
 
         Args:
             template: Python format 문자열 템플릿
-            parse_mode: 파싱 모드 (Markdown, HTML)
+            parse_mode: 파싱 모드 (plain text, HTML 등)
             **kwargs: 템플릿 치환 값
         """
         try:

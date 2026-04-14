@@ -76,10 +76,10 @@ class TelegramMessageTemplateConfig(BaseModel):
 
     error_alert: str = Field(
         default=(
-            "🚨 **Error Alert**\n\n"
+            "🚨 Error Alert\n\n"
             "{context_section}"
-            "**Error:** `{error_type}`\n"
-            "**Message:** {error_message}"
+            "Error: {error_type}\n"
+            "Message: {error_message}"
         )
     )
 

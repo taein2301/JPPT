@@ -96,7 +96,11 @@ class TelegramNotifier:
             env: 실행 환경 이름
             reason: 종료/완료 사유
         """
-        lines = [f"[{app_name}] {status}"]
+        display_name = app_name.strip()
+        if not (display_name.startswith("[") and display_name.endswith("]")):
+            display_name = f"[{display_name}]"
+
+        lines = [f"{display_name} {status}"]
 
         if env is not None:
             lines.append(f"Env : {env}")

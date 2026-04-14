@@ -1,12 +1,12 @@
 """Test CLI entry point."""
 
-from importlib.metadata import PackageNotFoundError, version
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 from typer.testing import CliRunner
 
-from src.main import app
+from src.main import CLI_NAME, app
 
 runner = CliRunner()
 
@@ -20,11 +20,14 @@ def _capture_coroutine(mock_asyncio_run: AsyncMock):
 
 def test_cli_version() -> None:
     """Test --version flag."""
-    with patch("src.main.load_config", side_effect=AssertionError("load_config should not run")):
+    with (
+        patch("src.main.load_config", side_effect=AssertionError("load_config should not run")),
+        patch("src.main.version", return_value="9.9.9"),
+    ):
         result = runner.invoke(app, ["--version"])
 
     assert result.exit_code == 0
-    assert result.stdout.strip() == f"jppt version {version('jppt')}"
+    assert result.stdout.strip() == f"{CLI_NAME} version 9.9.9"
 
 
 def test_cli_version_uses_fallback_when_package_metadata_is_missing() -> None:
@@ -36,7 +39,7 @@ def test_cli_version_uses_fallback_when_package_metadata_is_missing() -> None:
         result = runner.invoke(app, ["--version"])
 
     assert result.exit_code == 0
-    assert result.stdout.strip() == "jppt version 0.1.0"
+    assert result.stdout.strip() == f"{CLI_NAME} version 0.1.0"
 
 
 def test_cli_help() -> None:
@@ -222,4 +225,3 @@ def test_log_file_path_is_in_home_directory(
     assert log_file.is_absolute(), f"Log file path should be absolute, got: {log_file}"
     assert log_file.parent == home_logs, f"Log file should be in $HOME/logs, got: {log_file.parent}"
     assert log_file.name == "test-app.log"
-

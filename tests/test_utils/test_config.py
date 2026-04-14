@@ -9,18 +9,15 @@ from src.utils.config import Settings, load_config
 from src.utils.exceptions import ConfigurationError
 
 
-def test_load_config_default() -> None:
+def test_load_config_default(tmp_path: Path) -> None:
     """Test loading default configuration."""
     config_path = Path(__file__).parent.parent.parent / "config" / "dev.yaml.example"
-    config_dir = config_path.parent
+    config_dir = tmp_path
     temp_config = config_dir / "dev.yaml"
     temp_config.write_text(config_path.read_text(encoding="utf-8"), encoding="utf-8")
     expected = yaml.safe_load(config_path.read_text(encoding="utf-8"))["app"]
 
-    try:
-        config = load_config(env="dev")
-    finally:
-        temp_config.unlink(missing_ok=True)
+    config = load_config(env="dev", config_dir=config_dir)
 
     assert config.app.name == expected["name"]
     assert config.app.version == expected["version"]

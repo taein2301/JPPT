@@ -225,10 +225,20 @@ copy_generated_agents() {
     local source_dir="$1"
     local target_dir="$2"
     local agents_template="$source_dir/docs/AGENTS.md.sample"
+    local fallback_agents="$source_dir/AGENTS.md"
+    local fallback_claude="$source_dir/CLAUDE.md"
 
     if [ ! -f "$agents_template" ]; then
-        print_error "Generated AGENTS template not found: $agents_template"
-        return 1
+        if [ -f "$fallback_agents" ]; then
+            agents_template="$fallback_agents"
+            print_warning "AGENTS template missing; falling back to root AGENTS.md"
+        elif [ -f "$fallback_claude" ]; then
+            agents_template="$fallback_claude"
+            print_warning "AGENTS template missing; falling back to root CLAUDE.md"
+        else
+            print_error "Generated AGENTS template not found: $agents_template"
+            return 1
+        fi
     fi
 
     if ! cp "$agents_template" "$target_dir/AGENTS.md"; then
@@ -285,12 +295,20 @@ substitute_project_name() {
 
     # 2. Update pyproject.toml
     if [ -f "pyproject.toml" ]; then
-        sed -i.bak "s/name = \"jppt\"/name = \"$app_name\"/" pyproject.toml
+        sed -i.bak "s/^name = \".*\"$/name = \"$app_name\"/" pyproject.toml
         rm -f pyproject.toml.bak
         print_success "Updated pyproject.toml"
     fi
 
-    # 3. Create minimal README.md
+    # 3. Update CLI/package identifiers used by generated apps
+    if [ -f "src/main.py" ]; then
+        sed -i.bak "s/^CLI_NAME = \".*\"$/CLI_NAME = \"$app_name\"/" src/main.py
+        sed -i.bak "s/^DIST_NAME = \".*\"$/DIST_NAME = \"$app_name\"/" src/main.py
+        rm -f src/main.py.bak
+        print_success "Updated src/main.py"
+    fi
+
+    # 4. Create minimal README.md
     cat > README.md << EOF
 # $app_name
 
@@ -319,13 +337,13 @@ uv run mypy src/              # Type check
 EOF
     print_success "Created README.md"
 
-    # 4. Create docs directory and empty PRD.md
+    # 5. Create docs directory and empty PRD.md
     mkdir -p docs
     touch docs/PRD.md
     print_success "Created docs/PRD.md"
 
     # Commit the substitutions
-    git add -f config/dev.yaml config/dev.yaml.example config/prod.yaml.example pyproject.toml README.md docs/PRD.md
+    git add -f config/dev.yaml config/dev.yaml.example config/prod.yaml.example pyproject.toml src/main.py README.md docs/PRD.md
     git commit -m "chore: update project name to $app_name"
 
     return 0
@@ -471,11 +489,26 @@ run_tests_optional() {
     echo ""
     echo "${BOLD}Running initial tests...${RESET}"
 
+    local dev_config_path="config/dev.yaml"
+    local dev_config_backup=""
+    if [ -f "$dev_config_path" ]; then
+        dev_config_backup="$(mktemp)"
+        cp "$dev_config_path" "$dev_config_backup"
+    fi
+
     if uv run pytest -v; then
         print_success "All tests passed"
     else
         print_warning "Some tests failed, but setup is complete"
         print_info "Review test output above and fix any issues"
+    fi
+
+    if [ -n "$dev_config_backup" ]; then
+        if ! cmp -s "$dev_config_backup" "$dev_config_path" 2>/dev/null; then
+            cp "$dev_config_backup" "$dev_config_path"
+            print_info "Restored config/dev.yaml after test run"
+        fi
+        rm -f "$dev_config_backup"
     fi
 
     return 0
@@ -581,6 +614,42 @@ setup_telegram_optional() {
     fi
 
     return 0
+}
+
+open_project_shell() {
+    local target_dir="$1"
+    local shell_path="${SHELL:-/bin/bash}"
+    local shell_name
+
+    shell_name="$(basename "$shell_path")"
+    case "$shell_name" in
+        bash)
+            local bashrc_wrapper
+            bashrc_wrapper="$(mktemp)"
+            cat > "$bashrc_wrapper" << EOF
+[ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc"
+cd "$target_dir"
+EOF
+            exec "$shell_path" --rcfile "$bashrc_wrapper" -i
+            ;;
+        zsh)
+            local zdotdir_wrapper
+            zdotdir_wrapper="$(mktemp -d)"
+            cat > "$zdotdir_wrapper/.zshrc" << EOF
+[ -f "$HOME/.zshrc" ] && source "$HOME/.zshrc"
+cd "$target_dir"
+EOF
+            ZDOTDIR="$zdotdir_wrapper" exec "$shell_path" -i
+            ;;
+        sh)
+            cd "$target_dir" || return 1
+            exec "$shell_path" -i
+            ;;
+        *)
+            cd "$target_dir" || return 1
+            exec "$shell_path"
+            ;;
+    esac
 }
 
 # ============================================================================
@@ -707,6 +776,7 @@ main() {
     echo ""
     echo "${BOLD}Project:${RESET} $APP_NAME"
     echo "${BOLD}Location:${RESET} $TARGET_DIR"
+    echo "${BOLD}Dev config:${RESET} $TARGET_DIR/config/dev.yaml"
     if [ -d "$TARGET_DIR/.git" ]; then
         local repo_url=$(cd "$TARGET_DIR" && gh repo view --json url -q .url 2>/dev/null || echo "")
         if [ -n "$repo_url" ]; then
@@ -720,7 +790,7 @@ main() {
     echo "     ${BLUE}cd $TARGET_DIR${RESET}"
     echo ""
     echo "  2. Review and customize:"
-    echo "     ${BLUE}config/dev.yaml${RESET}"
+    echo "     ${BLUE}$TARGET_DIR/config/dev.yaml${RESET}"
     echo "     ${BLUE}docs/PRD.md${RESET}"
     echo "     ${BLUE}README.md${RESET}"
     echo ""
@@ -732,9 +802,9 @@ main() {
     echo "${BOLD}${GREEN}Opening new shell in project directory...${RESET}"
     echo ""
 
-    # Change to target directory and start new shell
-    cd "$TARGET_DIR" || exit 1
-    exec "${SHELL:-/bin/bash}"
+    # Start a new shell in the generated project directory.
+    # Executed scripts cannot change the parent shell's cwd permanently.
+    open_project_shell "$TARGET_DIR" || exit 1
 }
 
 # Run main function

@@ -161,8 +161,13 @@ def test_create_app_copies_generated_agents_template(tmp_path: Path) -> None:
     assert not (project_dir / "config" / "default.yaml").exists()
     dev_config = (project_dir / "config" / "dev.yaml").read_text(encoding="utf-8")
     prod_example = (project_dir / "config" / "prod.yaml.example").read_text(encoding="utf-8")
+    main_py = (project_dir / "src" / "main.py").read_text(encoding="utf-8")
+    pyproject = (project_dir / "pyproject.toml").read_text(encoding="utf-8")
     assert 'name: "sample-app"' in dev_config
     assert 'name: "sample-app"' in prod_example
+    assert 'CLI_NAME = "sample-app"' in main_py
+    assert 'DIST_NAME = "sample-app"' in main_py
+    assert 'name = "sample-app"' in pyproject
     agents_content = (project_dir / "AGENTS.md").read_text(encoding="utf-8")
     assert "JPPT" in agents_content
     assert "원본 파일은 수정 불가" in agents_content
@@ -175,6 +180,463 @@ def test_create_app_copies_generated_agents_template(tmp_path: Path) -> None:
     review_block = result.stdout.split("  2. Review and customize:", 1)[1]
     assert "config/dev.yaml" in review_block
     assert "docs/PRD.md" in review_block
+
+
+def test_create_app_falls_back_when_generated_agents_template_is_missing(tmp_path: Path) -> None:
+    """create_app.sh should fall back to root guidance when AGENTS sample is missing."""
+    source_repo = Path(__file__).resolve().parents[2]
+    repo_root = tmp_path / "JPPT"
+    shutil.copytree(
+        source_repo,
+        repo_root,
+        ignore=shutil.ignore_patterns(
+            ".git",
+            ".venv",
+            "__pycache__",
+            ".pytest_cache",
+            ".mypy_cache",
+            ".ruff_cache",
+            "htmlcov",
+        ),
+    )
+    (repo_root / "docs" / "AGENTS.md.sample").unlink(missing_ok=True)
+    project_dir = tmp_path / "sample-app"
+    fakebin = tmp_path / "fakebin"
+    fakebin.mkdir()
+
+    _write_executable(
+        fakebin / "python3",
+        "#!/usr/bin/env bash\n"
+        "echo 'Python 3.11.9'\n",
+    )
+    _write_executable(
+        fakebin / "uv",
+        "#!/usr/bin/env bash\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo 'uv 0.7.0'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"sync\" ] || [ \"$1\" = \"run\" ]; then\n"
+        "  exit 0\n"
+        "fi\n"
+        "exit 0\n",
+    )
+    _write_executable(
+        fakebin / "gh",
+        "#!/usr/bin/env bash\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo 'gh version 2.0.0'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"auth\" ] && [ \"$2\" = \"status\" ]; then\n"
+        "  echo 'Logged in to github.com'\n"
+        "  echo 'Token scopes: repo'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"user\" ]; then\n"
+        "  echo 'stub-user'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"repo\" ] && [ \"$2\" = \"view\" ] \\\n"
+        "  && [ \"$3\" = 'stub-user/sample-app' ]; then\n"
+        "  exit 1\n"
+        "fi\n"
+        "if [ \"$1\" = \"repo\" ] && [ \"$2\" = \"create\" ]; then\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"repo\" ] && [ \"$2\" = \"view\" ] && [ \"$3\" = \"--json\" ]; then\n"
+        "  echo 'https://github.com/stub-user/sample-app'\n"
+        "  exit 0\n"
+        "fi\n"
+        "exit 0\n",
+    )
+    _write_executable(
+        fakebin / "git",
+        "#!/usr/bin/env bash\n"
+        "case \"$1\" in\n"
+        "  init)\n"
+        "    mkdir -p .git\n"
+        "    exit 0\n"
+        "    ;;\n"
+        "  add|commit)\n"
+        "    exit 0\n"
+        "    ;;\n"
+        "  *)\n"
+        "    exit 0\n"
+        "    ;;\n"
+        "esac\n",
+    )
+    _write_executable(
+        fakebin / "rsync",
+        f"#!{sys.executable}\n"
+        "from __future__ import annotations\n"
+        "import shutil\n"
+        "import sys\n"
+        "from pathlib import Path\n"
+        "\n"
+        "args = sys.argv[1:]\n"
+        "src = Path(args[-2]).resolve()\n"
+        "dst = Path(args[-1]).resolve()\n"
+        "exclude_names = set()\n"
+        "exclude_paths = set()\n"
+        "for arg in args[:-2]:\n"
+        "    if not arg.startswith('--exclude='):\n"
+        "        continue\n"
+        "    pattern = arg.split('=', 1)[1]\n"
+        "    if pattern.endswith('/'):\n"
+        "        exclude_names.add(pattern.rstrip('/'))\n"
+        "    else:\n"
+        "        exclude_paths.add(pattern)\n"
+        "for item in src.rglob('*'):\n"
+        "    rel = item.relative_to(src)\n"
+        "    rel_str = rel.as_posix()\n"
+        "    if any(part in exclude_names for part in rel.parts):\n"
+        "        continue\n"
+        "    if rel_str in exclude_paths or rel.name.endswith('.pyc'):\n"
+        "        continue\n"
+        "    target = dst / rel\n"
+        "    if item.is_dir():\n"
+        "        target.mkdir(parents=True, exist_ok=True)\n"
+        "    else:\n"
+        "        target.parent.mkdir(parents=True, exist_ok=True)\n"
+        "        shutil.copy2(item, target)\n"
+        "sys.exit(0)\n",
+    )
+
+    env = os.environ.copy()
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+    env["SHELL"] = shutil.which("true") or "/usr/bin/true"
+
+    result = subprocess.run(
+        ["bash", "scripts/create_app.sh", "sample-app", "--skip-tests", "--no-hooks"],
+        cwd=repo_root,
+        env=env,
+        input="\n\n",
+        text=True,
+        capture_output=True,
+        timeout=60,
+    )
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert (project_dir / "AGENTS.md").exists()
+    assert "falling back to root AGENTS.md" in result.stdout
+
+
+def test_create_app_opens_new_shell_in_generated_project_directory(tmp_path: Path) -> None:
+    """create_app.sh should start the final shell from the generated project directory."""
+    source_repo = Path(__file__).resolve().parents[2]
+    repo_root = tmp_path / "JPPT"
+    shutil.copytree(
+        source_repo,
+        repo_root,
+        ignore=shutil.ignore_patterns(
+            ".git",
+            ".venv",
+            "__pycache__",
+            ".pytest_cache",
+            ".mypy_cache",
+            ".ruff_cache",
+            "htmlcov",
+        ),
+    )
+    project_dir = tmp_path / "sample-app"
+    fakebin = tmp_path / "fakebin"
+    fakebin.mkdir()
+    shell_log = tmp_path / "shell.log"
+
+    _write_executable(
+        fakebin / "python3",
+        "#!/usr/bin/env bash\n"
+        "echo 'Python 3.11.9'\n",
+    )
+    _write_executable(
+        fakebin / "uv",
+        "#!/usr/bin/env bash\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo 'uv 0.7.0'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"sync\" ] || [ \"$1\" = \"run\" ]; then\n"
+        "  exit 0\n"
+        "fi\n"
+        "exit 0\n",
+    )
+    _write_executable(
+        fakebin / "gh",
+        "#!/usr/bin/env bash\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo 'gh version 2.0.0'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"auth\" ] && [ \"$2\" = \"status\" ]; then\n"
+        "  echo 'Logged in to github.com'\n"
+        "  echo 'Token scopes: repo'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"user\" ]; then\n"
+        "  echo 'stub-user'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"repo\" ] && [ \"$2\" = \"view\" ] \\\n"
+        "  && [ \"$3\" = 'stub-user/sample-app' ]; then\n"
+        "  exit 1\n"
+        "fi\n"
+        "if [ \"$1\" = \"repo\" ] && [ \"$2\" = \"create\" ]; then\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"repo\" ] && [ \"$2\" = \"view\" ] && [ \"$3\" = \"--json\" ]; then\n"
+        "  echo 'https://github.com/stub-user/sample-app'\n"
+        "  exit 0\n"
+        "fi\n"
+        "exit 0\n",
+    )
+    _write_executable(
+        fakebin / "git",
+        "#!/usr/bin/env bash\n"
+        "case \"$1\" in\n"
+        "  init)\n"
+        "    mkdir -p .git\n"
+        "    exit 0\n"
+        "    ;;\n"
+        "  add|commit)\n"
+        "    exit 0\n"
+        "    ;;\n"
+        "  *)\n"
+        "    exit 0\n"
+        "    ;;\n"
+        "esac\n",
+    )
+    _write_executable(
+        fakebin / "rsync",
+        f"#!{sys.executable}\n"
+        "from __future__ import annotations\n"
+        "import shutil\n"
+        "import sys\n"
+        "from pathlib import Path\n"
+        "\n"
+        "args = sys.argv[1:]\n"
+        "src = Path(args[-2]).resolve()\n"
+        "dst = Path(args[-1]).resolve()\n"
+        "exclude_names = set()\n"
+        "exclude_paths = set()\n"
+        "for arg in args[:-2]:\n"
+        "    if not arg.startswith('--exclude='):\n"
+        "        continue\n"
+        "    pattern = arg.split('=', 1)[1]\n"
+        "    if pattern.endswith('/'):\n"
+        "        exclude_names.add(pattern.rstrip('/'))\n"
+        "    else:\n"
+        "        exclude_paths.add(pattern)\n"
+        "for item in src.rglob('*'):\n"
+        "    rel = item.relative_to(src)\n"
+        "    rel_str = rel.as_posix()\n"
+        "    if any(part in exclude_names for part in rel.parts):\n"
+        "        continue\n"
+        "    if rel_str in exclude_paths or rel.name.endswith('.pyc'):\n"
+        "        continue\n"
+        "    target = dst / rel\n"
+        "    if item.is_dir():\n"
+        "        target.mkdir(parents=True, exist_ok=True)\n"
+        "    else:\n"
+        "        target.parent.mkdir(parents=True, exist_ok=True)\n"
+        "        shutil.copy2(item, target)\n"
+        "sys.exit(0)\n",
+    )
+    _write_executable(
+        fakebin / "fake-shell",
+        f"#!{sys.executable}\n"
+        "from __future__ import annotations\n"
+        "import os\n"
+        "from pathlib import Path\n"
+        "\n"
+        "Path(os.environ['TEST_SHELL_LOG']).write_text(os.getcwd(), encoding='utf-8')\n",
+    )
+
+    env = os.environ.copy()
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+    env["SHELL"] = str(fakebin / "fake-shell")
+    env["TEST_SHELL_LOG"] = str(shell_log)
+
+    result = subprocess.run(
+        ["bash", "scripts/create_app.sh", "sample-app", "--skip-tests", "--no-hooks"],
+        cwd=repo_root,
+        env=env,
+        input="\n\n",
+        text=True,
+        capture_output=True,
+        timeout=60,
+    )
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert shell_log.read_text(encoding="utf-8") == str(project_dir)
+
+
+def test_create_app_overrides_shell_startup_directory(tmp_path: Path) -> None:
+    """create_app.sh should land in project dir even if shell startup changes cwd."""
+    source_repo = Path(__file__).resolve().parents[2]
+    repo_root = tmp_path / "JPPT"
+    shutil.copytree(
+        source_repo,
+        repo_root,
+        ignore=shutil.ignore_patterns(
+            ".git",
+            ".venv",
+            "__pycache__",
+            ".pytest_cache",
+            ".mypy_cache",
+            ".ruff_cache",
+            "htmlcov",
+        ),
+    )
+    project_dir = tmp_path / "sample-app"
+    fakebin = tmp_path / "fakebin"
+    fakebin.mkdir()
+    shell_log = tmp_path / "shell-zsh.log"
+    fake_home = tmp_path / "fake-home"
+    fake_home.mkdir()
+    rc_forced_dir = tmp_path / "forced-dir"
+    rc_forced_dir.mkdir()
+    (fake_home / ".zshrc").write_text(f'cd "{rc_forced_dir}"\n', encoding="utf-8")
+
+    _write_executable(
+        fakebin / "python3",
+        "#!/usr/bin/env bash\n"
+        "echo 'Python 3.11.9'\n",
+    )
+    _write_executable(
+        fakebin / "uv",
+        "#!/usr/bin/env bash\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo 'uv 0.7.0'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"sync\" ] || [ \"$1\" = \"run\" ]; then\n"
+        "  exit 0\n"
+        "fi\n"
+        "exit 0\n",
+    )
+    _write_executable(
+        fakebin / "gh",
+        "#!/usr/bin/env bash\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo 'gh version 2.0.0'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"auth\" ] && [ \"$2\" = \"status\" ]; then\n"
+        "  echo 'Logged in to github.com'\n"
+        "  echo 'Token scopes: repo'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"user\" ]; then\n"
+        "  echo 'stub-user'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"repo\" ] && [ \"$2\" = \"view\" ] \\\n"
+        "  && [ \"$3\" = 'stub-user/sample-app' ]; then\n"
+        "  exit 1\n"
+        "fi\n"
+        "if [ \"$1\" = \"repo\" ] && [ \"$2\" = \"create\" ]; then\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"repo\" ] && [ \"$2\" = \"view\" ] && [ \"$3\" = \"--json\" ]; then\n"
+        "  echo 'https://github.com/stub-user/sample-app'\n"
+        "  exit 0\n"
+        "fi\n"
+        "exit 0\n",
+    )
+    _write_executable(
+        fakebin / "git",
+        "#!/usr/bin/env bash\n"
+        "case \"$1\" in\n"
+        "  init)\n"
+        "    mkdir -p .git\n"
+        "    exit 0\n"
+        "    ;;\n"
+        "  add|commit)\n"
+        "    exit 0\n"
+        "    ;;\n"
+        "  *)\n"
+        "    exit 0\n"
+        "    ;;\n"
+        "esac\n",
+    )
+    _write_executable(
+        fakebin / "rsync",
+        f"#!{sys.executable}\n"
+        "from __future__ import annotations\n"
+        "import shutil\n"
+        "import sys\n"
+        "from pathlib import Path\n"
+        "\n"
+        "args = sys.argv[1:]\n"
+        "src = Path(args[-2]).resolve()\n"
+        "dst = Path(args[-1]).resolve()\n"
+        "exclude_names = set()\n"
+        "exclude_paths = set()\n"
+        "for arg in args[:-2]:\n"
+        "    if not arg.startswith('--exclude='):\n"
+        "        continue\n"
+        "    pattern = arg.split('=', 1)[1]\n"
+        "    if pattern.endswith('/'):\n"
+        "        exclude_names.add(pattern.rstrip('/'))\n"
+        "    else:\n"
+        "        exclude_paths.add(pattern)\n"
+        "for item in src.rglob('*'):\n"
+        "    rel = item.relative_to(src)\n"
+        "    rel_str = rel.as_posix()\n"
+        "    if any(part in exclude_names for part in rel.parts):\n"
+        "        continue\n"
+        "    if rel_str in exclude_paths or rel.name.endswith('.pyc'):\n"
+        "        continue\n"
+        "    target = dst / rel\n"
+        "    if item.is_dir():\n"
+        "        target.mkdir(parents=True, exist_ok=True)\n"
+        "    else:\n"
+        "        target.parent.mkdir(parents=True, exist_ok=True)\n"
+        "        shutil.copy2(item, target)\n"
+        "sys.exit(0)\n",
+    )
+    _write_executable(
+        fakebin / "zsh",
+        f"#!{sys.executable}\n"
+        "from __future__ import annotations\n"
+        "import os\n"
+        "from pathlib import Path\n"
+        "\n"
+        "def apply_cd_commands(path: Path) -> None:\n"
+        "    if not path.exists():\n"
+        "        return\n"
+        "    for line in path.read_text(encoding='utf-8').splitlines():\n"
+        "        line = line.strip()\n"
+        "        if line.startswith('cd \"') and line.endswith('\"'):\n"
+        "            os.chdir(line[4:-1])\n"
+        "\n"
+        "home_rc = Path(os.environ['HOME']) / '.zshrc'\n"
+        "apply_cd_commands(home_rc)\n"
+        "zdotdir = os.environ.get('ZDOTDIR')\n"
+        "if zdotdir:\n"
+        "    apply_cd_commands(Path(zdotdir) / '.zshrc')\n"
+        "Path(os.environ['TEST_SHELL_LOG']).write_text(os.getcwd(), encoding='utf-8')\n",
+    )
+
+    env = os.environ.copy()
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+    env["SHELL"] = str(fakebin / "zsh")
+    env["HOME"] = str(fake_home)
+    env["TEST_SHELL_LOG"] = str(shell_log)
+
+    result = subprocess.run(
+        ["bash", "scripts/create_app.sh", "sample-app", "--skip-tests", "--no-hooks"],
+        cwd=repo_root,
+        env=env,
+        input="\n\n",
+        text=True,
+        capture_output=True,
+        timeout=60,
+    )
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert shell_log.read_text(encoding="utf-8") == str(project_dir)
 
 
 def test_create_app_accepts_repo_scope_from_github_api_headers(tmp_path: Path) -> None:
@@ -779,7 +1241,7 @@ def test_create_app_force_adds_ignored_dev_config(tmp_path: Path) -> None:
     git_calls = git_log.read_text(encoding="utf-8")
     assert (
         "add -f config/dev.yaml config/dev.yaml.example config/prod.yaml.example "
-        "pyproject.toml README.md docs/PRD.md" in git_calls
+        "pyproject.toml src/main.py README.md docs/PRD.md" in git_calls
     )
 
 
@@ -1365,3 +1827,151 @@ def test_create_app_creates_dev_config_before_dependency_install(tmp_path: Path)
 
     assert result.returncode != 0
     assert (project_dir / "config" / "dev.yaml").exists()
+
+
+def test_create_app_restores_dev_config_if_tests_delete_it(tmp_path: Path) -> None:
+    """Initial test run should not leave config/dev.yaml deleted."""
+    source_repo = Path(__file__).resolve().parents[2]
+    repo_root = tmp_path / "JPPT"
+    shutil.copytree(
+        source_repo,
+        repo_root,
+        ignore=shutil.ignore_patterns(
+            ".git",
+            ".venv",
+            "__pycache__",
+            ".pytest_cache",
+            ".mypy_cache",
+            ".ruff_cache",
+            "htmlcov",
+        ),
+    )
+    project_dir = tmp_path / "sample-app"
+    fakebin = tmp_path / "fakebin"
+    fakebin.mkdir()
+
+    _write_executable(
+        fakebin / "python3",
+        "#!/usr/bin/env bash\n"
+        "echo 'Python 3.11.9'\n",
+    )
+    _write_executable(
+        fakebin / "uv",
+        "#!/usr/bin/env bash\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo 'uv 0.7.0'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"sync\" ]; then\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"run\" ] && [ \"$2\" = \"pre-commit\" ]; then\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"run\" ] && [ \"$2\" = \"pytest\" ]; then\n"
+        "  rm -f config/dev.yaml\n"
+        "  exit 0\n"
+        "fi\n"
+        "exit 0\n",
+    )
+    _write_executable(
+        fakebin / "gh",
+        "#!/usr/bin/env bash\n"
+        "if [ \"$1\" = \"--version\" ]; then\n"
+        "  echo 'gh version 2.87.3'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"auth\" ] && [ \"$2\" = \"status\" ]; then\n"
+        "  echo 'github.com'\n"
+        "  echo '  ✓ Logged in to github.com account stub-user (GITHUB_TOKEN)'\n"
+        "  echo '  - Active account: true'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"api\" ] && [ \"$2\" = \"user\" ]; then\n"
+        "  echo 'stub-user'\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"repo\" ] && [ \"$2\" = \"view\" ] \\\n"
+        "  && [ \"$3\" = 'stub-user/sample-app' ]; then\n"
+        "  exit 1\n"
+        "fi\n"
+        "if [ \"$1\" = \"repo\" ] && [ \"$2\" = \"create\" ]; then\n"
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"repo\" ] && [ \"$2\" = \"view\" ] && [ \"$3\" = \"--json\" ]; then\n"
+        "  echo 'https://github.com/stub-user/sample-app'\n"
+        "  exit 0\n"
+        "fi\n"
+        "exit 0\n",
+    )
+    _write_executable(
+        fakebin / "git",
+        "#!/usr/bin/env bash\n"
+        "case \"$1\" in\n"
+        "  init)\n"
+        "    mkdir -p .git\n"
+        "    exit 0\n"
+        "    ;;\n"
+        "  add|commit)\n"
+        "    exit 0\n"
+        "    ;;\n"
+        "  *)\n"
+        "    exit 0\n"
+        "    ;;\n"
+        "esac\n",
+    )
+    _write_executable(
+        fakebin / "rsync",
+        f"#!{sys.executable}\n"
+        "from __future__ import annotations\n"
+        "import shutil\n"
+        "import sys\n"
+        "from pathlib import Path\n"
+        "\n"
+        "args = sys.argv[1:]\n"
+        "src = Path(args[-2]).resolve()\n"
+        "dst = Path(args[-1]).resolve()\n"
+        "exclude_names = set()\n"
+        "exclude_paths = set()\n"
+        "for arg in args[:-2]:\n"
+        "    if not arg.startswith('--exclude='):\n"
+        "        continue\n"
+        "    pattern = arg.split('=', 1)[1]\n"
+        "    if pattern.endswith('/'):\n"
+        "        exclude_names.add(pattern.rstrip('/'))\n"
+        "    else:\n"
+        "        exclude_paths.add(pattern)\n"
+        "for item in src.rglob('*'):\n"
+        "    rel = item.relative_to(src)\n"
+        "    rel_str = rel.as_posix()\n"
+        "    if any(part in exclude_names for part in rel.parts):\n"
+        "        continue\n"
+        "    if rel_str in exclude_paths or rel.name.endswith('.pyc'):\n"
+        "        continue\n"
+        "    target = dst / rel\n"
+        "    if item.is_dir():\n"
+        "        target.mkdir(parents=True, exist_ok=True)\n"
+        "    else:\n"
+        "        target.parent.mkdir(parents=True, exist_ok=True)\n"
+        "        shutil.copy2(item, target)\n"
+        "sys.exit(0)\n",
+    )
+
+    env = os.environ.copy()
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+    env["SHELL"] = shutil.which("true") or "/usr/bin/true"
+
+    result = subprocess.run(
+        ["bash", "scripts/create_app.sh", "sample-app", "--no-hooks"],
+        cwd=repo_root,
+        env=env,
+        input="\n",
+        text=True,
+        capture_output=True,
+        timeout=60,
+    )
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    dev_config = project_dir / "config" / "dev.yaml"
+    assert dev_config.exists()
+    assert "Restored config/dev.yaml after test run" in result.stdout

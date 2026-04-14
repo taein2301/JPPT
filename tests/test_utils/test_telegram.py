@@ -175,3 +175,8 @@ def test_format_status_message_with_env() -> None:
 def test_format_status_message_with_reason() -> None:
     message = TelegramNotifier.format_status_message("j-upbit", "stop", reason="gracefully")
     assert message == "[j-upbit] stop\nReason : gracefully"
+
+
+def test_format_status_message_wraps_unbracketed_app_name() -> None:
+    message = TelegramNotifier.format_status_message("j-bithumb", "start", env="dev")
+    assert message == "[j-bithumb] start\nEnv : dev"

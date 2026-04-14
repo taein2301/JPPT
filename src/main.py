@@ -14,9 +14,12 @@ from loguru import logger
 from src.utils.config import Settings, load_config
 from src.utils.logger import setup_logger
 
+CLI_NAME = "jppt"
+DIST_NAME = "jppt"
+
 # 프로젝트 루트 디렉토리 (src/의 부모 디렉토리)
 app = typer.Typer(
-    name="jppt",
+    name=CLI_NAME,
     help="JKLEE Python Project Template",
     add_completion=False,
 )
@@ -108,7 +111,7 @@ def _configure_runtime(
 def _package_version() -> str:
     """설치된 패키지 버전을 반환합니다."""
     try:
-        return version("jppt")
+        return version(DIST_NAME)
     except PackageNotFoundError:
         return "0.1.0"
 
@@ -116,7 +119,7 @@ def _package_version() -> str:
 def version_callback(value: bool) -> None:
     """버전 정보를 출력하고 종료합니다."""
     if value:
-        typer.echo(f"jppt version {_package_version()}")
+        typer.echo(f"{CLI_NAME} version {_package_version()}")
         raise typer.Exit()
 
 

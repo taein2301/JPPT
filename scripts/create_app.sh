@@ -209,6 +209,8 @@ copy_template() {
         --exclude='config/dev.yaml' \
         --exclude='config/prod.yaml' \
         --exclude='README.ko.md' \
+        --exclude='run.ps1' \
+        --exclude='scripts/create_app.ps1' \
         --exclude='docs/' \
         "$source_dir/" "$target_dir/"; then
         print_error "Failed to copy template"

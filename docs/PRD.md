@@ -73,10 +73,8 @@ JPPT/
 │   ├── FRAMEWORK_GUIDE.md
 │   └── PRD.md
 ├── scripts/                 # 프로젝트 생성기
-│   ├── create_app.sh        # 프로젝트 생성 스크립트 (Linux/macOS)
-│   └── create_app.ps1       # 프로젝트 생성 스크립트 (Windows)
+│   └── create_app.sh        # 프로젝트 생성 스크립트 (Linux/macOS)
 ├── run.sh                   # 실행 래퍼 (Linux/macOS)
-├── run.ps1                  # 실행 래퍼 (Windows)
 ├── .pre-commit-config.yaml  # pre-commit 설정
 ├── pyproject.toml           # 프로젝트 메타데이터
 ├── ruff.toml                # ruff 설정
@@ -358,7 +356,7 @@ git merge upstream/main --allow-unrelated-histories
 
 ### 6.2 호환성
 - Python 버전: 3.11+
-- OS: Linux, macOS, Windows
+- OS: Linux, macOS
 
 ### 6.3 확장성
 - 새 서비스 추가 용이 (`utils/` 하위)

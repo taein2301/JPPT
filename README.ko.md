@@ -28,16 +28,6 @@
 ./scripts/create_app.sh my-app --no-hooks    # pre-commit 훅 건너뛰기
 ```
 
-**Windows (PowerShell):**
-```powershell
-# 템플릿으로부터 새 프로젝트 생성
-.\scripts\create_app.ps1 my-awesome-app
-
-# 옵션과 함께 생성
-.\scripts\create_app.ps1 my-app -SkipTests   # 초기 테스트 건너뛰기
-.\scripts\create_app.ps1 my-app -NoHooks     # pre-commit 훅 건너뛰기
-```
-
 이 명령은 다음을 수행합니다:
 - ✅ Python 3.11+, uv, GitHub CLI 설치 확인
 - ✅ 앱 이름 유효성 검사 (소문자, 숫자, 하이픈, 언더스코어만 허용)
@@ -64,13 +54,6 @@ uv sync --all-extras
 cp config/dev.yaml.example config/dev.yaml
 ```
 
-**Windows (PowerShell):**
-```powershell
-cd JPPT  # JPPT 디렉토리로 이동
-uv sync --all-extras
-Copy-Item config/dev.yaml.example config/dev.yaml
-```
-
 ### 애플리케이션 실행
 
 **Linux/macOS:**
@@ -79,14 +62,6 @@ Copy-Item config/dev.yaml.example config/dev.yaml
 ./run.sh              # 시작 모드, 개발 환경
 ./run.sh batch        # 배치 모드, 개발 환경
 ./run.sh start prod   # 시작 모드, 운영 환경
-```
-
-**Windows (PowerShell):**
-```powershell
-# 빠른 실행 스크립트 (권장)
-.\run.ps1              # 시작 모드, 개발 환경
-.\run.ps1 batch        # 배치 모드, 개발 환경
-.\run.ps1 start prod   # 시작 모드, 운영 환경
 ```
 
 **또는 uv를 직접 사용 (모든 플랫폼):**
@@ -129,11 +104,9 @@ src/
     └── telegram.py      # 텔레그램 알림
 
 scripts/                 # 자동화 스크립트
-├── create_app.sh        # 프로젝트 생성기 (Linux/macOS)
-└── create_app.ps1       # 프로젝트 생성기 (Windows)
+└── create_app.sh        # 프로젝트 생성기 (Linux/macOS)
 
 run.sh                   # 빠른 실행 래퍼 (Linux/macOS)
-run.ps1                  # 빠른 실행 래퍼 (Windows)
 
 tests/                   # 테스트 스위트
 config/                  # 설정 파일
@@ -185,12 +158,6 @@ telegram:
    export TELEGRAM__BOT_TOKEN="your-token"
    export TELEGRAM__CHAT_ID="your-chat-id"
    ```
-   ```powershell
-   # Windows (PowerShell)
-   $env:TELEGRAM__BOT_TOKEN="your-token"
-   $env:TELEGRAM__CHAT_ID="your-chat-id"
-   ```
-
 ### 환경별 설정
 
 ```bash
@@ -223,18 +190,12 @@ JPPT 템플릿으로부터 새 프로젝트를 생성합니다.
 ./scripts/create_app.sh --help    # 옵션 보기
 ```
 
-**Windows (`scripts/create_app.ps1`):**
-```powershell
-.\scripts\create_app.ps1 <app-name> [OPTIONS]
-.\scripts\create_app.ps1 -Help    # 옵션 보기
-```
-
 **옵션:**
 | 옵션 | 설명 |
 |------|------|
-| `--skip-tests` / `-SkipTests` | 초기 테스트 실행 건너뛰기 |
-| `--no-hooks` / `-NoHooks` | pre-commit 훅 설치 건너뛰기 |
-| `--help` / `-Help` | 사용법 표시 |
+| `--skip-tests` | 초기 테스트 실행 건너뛰기 |
+| `--no-hooks` | pre-commit 훅 설치 건너뛰기 |
+| `--help` | 사용법 표시 |
 
 **필수 도구:**
 - Python 3.11+
@@ -254,17 +215,6 @@ JPPT 템플릿으로부터 새 프로젝트를 생성합니다.
 ./run.sh                  # 시작 모드, 개발 환경
 ./run.sh batch            # 배치 모드, 개발 환경
 ./run.sh start prod       # 시작 모드, 운영 환경
-```
-
-**Windows (`run.ps1`):**
-```powershell
-.\run.ps1 [MODE] [ENV]
-.\run.ps1 -Help           # 사용법 보기
-
-# 예시:
-.\run.ps1                 # 시작 모드, 개발 환경
-.\run.ps1 batch           # 배치 모드, 개발 환경
-.\run.ps1 start prod      # 시작 모드, 운영 환경
 ```
 
 ## 개발

@@ -75,13 +75,12 @@ JPPT/
 │   ├── dev.yaml.example        # Dev config template (committed)
 │   └── prod.yaml.example       # Prod config template (committed)
 ├── scripts/                    # Project generation scripts
-│   ├── create_app.sh           # Create new project from template (Linux/macOS)
-│   └── create_app.ps1          # Create new project from template (Windows)
+│   └── create_app.sh           # Create new project from template (Linux/macOS)
 ├── docs/                       # Documentation and planning
 ├── pyproject.toml              # Project metadata, dependencies, tool config
 ├── ruff.toml                   # Ruff linter/formatter config
 ├── .pre-commit-config.yaml     # Pre-commit hooks (ruff + mypy)
-├── run.sh / run.ps1            # Quick-start runners
+├── run.sh                      # Quick-start runner
 └── uv.lock                     # Locked dependencies
 ```
 

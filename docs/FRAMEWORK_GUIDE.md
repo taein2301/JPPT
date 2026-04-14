@@ -18,18 +18,6 @@ cd /path/to/JPPT
 cd ../my-new-project
 ```
 
-**Windows (PowerShell):**
-```powershell
-# Navigate to JPPT directory
-cd C:\path\to\JPPT
-
-# Create new project
-.\scripts\create_app.ps1 my-new-project
-
-# Navigate to new project
-cd ..\my-new-project
-```
-
 This will:
 - Create a new directory `my-new-project` next to JPPT
 - Copy all template files (excluding build artifacts)
@@ -189,11 +177,9 @@ src/
     └── telegram.py      # Telegram notifications
 
 scripts/
-├── create_app.sh        # Project generator (Linux/macOS)
-└── create_app.ps1       # Project generator (Windows)
+└── create_app.sh        # Project generator (Linux/macOS)
 
 run.sh                   # Quick run wrapper (Linux/macOS)
-run.ps1                  # Quick run wrapper (Windows)
 ```
 
 ### What to Modify

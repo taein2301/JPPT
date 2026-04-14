@@ -28,16 +28,6 @@ Modern Python CLI application template with best practices built-in.
 ./scripts/create_app.sh my-app --no-hooks    # Skip pre-commit hooks
 ```
 
-**Windows (PowerShell):**
-```powershell
-# Create new project from template
-.\scripts\create_app.ps1 my-awesome-app
-
-# Or with options
-.\scripts\create_app.ps1 my-app -SkipTests   # Skip initial tests
-.\scripts\create_app.ps1 my-app -NoHooks     # Skip pre-commit hooks
-```
-
 This will:
 - ✅ Verify Python 3.11+, uv, and GitHub CLI installation
 - ✅ Validate app name (lowercase, numbers, hyphens, underscores only)
@@ -64,13 +54,6 @@ uv sync --all-extras
 cp config/dev.yaml.example config/dev.yaml
 ```
 
-**Windows (PowerShell):**
-```powershell
-cd JPPT  # Navigate to JPPT directory
-uv sync --all-extras
-Copy-Item config/dev.yaml.example config/dev.yaml
-```
-
 ### Run the Application
 
 **Linux/macOS:**
@@ -79,14 +62,6 @@ Copy-Item config/dev.yaml.example config/dev.yaml
 ./run.sh              # Start mode, dev environment
 ./run.sh batch        # Batch mode, dev environment
 ./run.sh start prod   # Start mode, prod environment
-```
-
-**Windows (PowerShell):**
-```powershell
-# Quick run scripts (recommended)
-.\run.ps1              # Start mode, dev environment
-.\run.ps1 batch        # Batch mode, dev environment
-.\run.ps1 start prod   # Start mode, prod environment
 ```
 
 **Or use uv directly (all platforms):**
@@ -209,11 +184,9 @@ src/
     └── telegram.py      # Telegram notifications
 
 scripts/                 # Automation scripts
-├── create_app.sh        # Project generator (Linux/macOS)
-└── create_app.ps1       # Project generator (Windows)
+└── create_app.sh        # Project generator (Linux/macOS)
 
 run.sh                   # Quick run wrapper (Linux/macOS)
-run.ps1                  # Quick run wrapper (Windows)
 
 tests/                   # Test suite
 config/                  # Configuration files
@@ -265,12 +238,6 @@ Telegram can be configured in two ways:
    export TELEGRAM__BOT_TOKEN="your-token"
    export TELEGRAM__CHAT_ID="your-chat-id"
    ```
-   ```powershell
-   # Windows (PowerShell)
-   $env:TELEGRAM__BOT_TOKEN="your-token"
-   $env:TELEGRAM__CHAT_ID="your-chat-id"
-   ```
-
 ### Environment-Specific Config
 
 ```bash
@@ -305,18 +272,12 @@ Creates a new project from the JPPT template.
 ./scripts/create_app.sh --help    # Show options
 ```
 
-**Windows (`scripts/create_app.ps1`):**
-```powershell
-.\scripts\create_app.ps1 <app-name> [OPTIONS]
-.\scripts\create_app.ps1 -Help    # Show options
-```
-
 **Options:**
 | Option | Description |
 |--------|-------------|
-| `--skip-tests` / `-SkipTests` | Skip running initial tests |
-| `--no-hooks` / `-NoHooks` | Skip pre-commit hooks installation |
-| `--help` / `-Help` | Show usage information |
+| `--skip-tests` | Skip running initial tests |
+| `--no-hooks` | Skip pre-commit hooks installation |
+| `--help` | Show usage information |
 
 **Requirements:**
 - Python 3.11+
@@ -336,17 +297,6 @@ Quick run wrappers — simplified app execution.
 ./run.sh                  # start mode, dev env
 ./run.sh batch            # batch mode, dev env
 ./run.sh start prod       # start mode, prod env
-```
-
-**Windows (`run.ps1`):**
-```powershell
-.\run.ps1 [MODE] [ENV]
-.\run.ps1 -Help           # Show usage
-
-# Examples:
-.\run.ps1                 # start mode, dev env
-.\run.ps1 batch           # batch mode, dev env
-.\run.ps1 start prod      # start mode, prod env
 ```
 
 ## Examples and Patterns

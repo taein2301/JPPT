@@ -155,6 +155,8 @@ def test_create_app_copies_generated_agents_template(tmp_path: Path) -> None:
     assert (project_dir / "AGENTS.md").exists()
     assert (project_dir / "README.md").exists()
     assert not (project_dir / "README.ko.md").exists()
+    assert not (project_dir / "run.ps1").exists()
+    assert not (project_dir / "scripts" / "create_app.ps1").exists()
     assert not (project_dir / "docs" / "task.md").exists()
     assert not (project_dir / "config" / "default.yaml").exists()
     dev_config = (project_dir / "config" / "dev.yaml").read_text(encoding="utf-8")

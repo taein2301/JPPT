@@ -29,6 +29,19 @@ def test_ready_endpoint() -> None:
     client = TestClient(app)
     response = client.get("/ready")
 
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["status"] == "not_ready"
+    assert payload["app"] == settings.app.name
+
+
+def test_ready_endpoint_reports_ready_after_startup() -> None:
+    settings = Settings()
+    app = create_api_app(settings)
+
+    with TestClient(app) as client:
+        response = client.get("/ready")
+
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "ready"

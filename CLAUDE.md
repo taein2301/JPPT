@@ -14,7 +14,7 @@
 
 ```bash
 # Install dependencies (including dev)
-uv sync --dev
+uv sync --extra dev
 
 # Run the app (start mode — daemon)
 uv run python -m src.main start --env dev
@@ -237,7 +237,7 @@ See the [KAVS project](https://github.com/taein2301/kavs) for a real-world examp
 
 ## Common Pitfalls
 
-- Always run `uv sync --dev` after pulling — this project uses uv, not pip
+- Always run `uv sync --extra dev` after pulling — this project uses uv, not pip
 - The config system requires `config/{env}.yaml` to exist; create it from the matching `.example` file first
 - `HttpClient` must be used as an async context manager (`async with`) or you'll get `"Client not initialized"` errors
 - mypy is in strict mode: forgetting type annotations will fail the pre-commit hook

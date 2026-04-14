@@ -8,14 +8,13 @@ from contextlib import asynccontextmanager
 from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, FastAPI, Request, status
+from fastapi import APIRouter, FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from loguru import logger
 from pydantic import BaseModel, Field
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
-from starlette.responses import Response
 
 from src.utils.config import Settings
 from src.utils.exceptions import AppException, ValidationError
@@ -84,10 +83,14 @@ def _create_system_router(settings: Settings) -> APIRouter:
         )
 
     @router.get("/ready", response_model=HealthResponse)
-    async def ready_check() -> HealthResponse:
+    async def ready_check(request: Request, response: Response) -> HealthResponse:
         """서비스 준비 상태를 조회합니다."""
+        ready = bool(getattr(request.app.state, "ready", False))
+        if not ready:
+            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+
         return HealthResponse(
-            status="ready",
+            status="ready" if ready else "not_ready",
             app=settings.app.name,
             version=settings.app.version,
             debug=settings.app.debug,
@@ -118,7 +121,10 @@ def create_api_app(settings: Settings) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         """애플리케이션 수명주기를 관리합니다."""
         app.state.ready = True
-        yield
+        try:
+            yield
+        finally:
+            app.state.ready = False
 
     app = FastAPI(
         title=settings.app.name,

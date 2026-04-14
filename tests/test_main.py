@@ -1,5 +1,6 @@
 """Test CLI entry point."""
 
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -19,17 +20,23 @@ def _capture_coroutine(mock_asyncio_run: AsyncMock):
 
 def test_cli_version() -> None:
     """Test --version flag."""
-    from src.utils.config import Settings
-
-    with patch("src.main.load_config") as mock_load_config:
-        mock_load_config.return_value = Settings(
-            app={"name": "test-app", "version": "0.1.0", "debug": False}
-        )
+    with patch("src.main.load_config", side_effect=AssertionError("load_config should not run")):
         result = runner.invoke(app, ["--version"])
 
     assert result.exit_code == 0
-    assert "version" in result.stdout.lower()
-    assert "test-app" in result.stdout
+    assert result.stdout.strip() == f"jppt version {version('jppt')}"
+
+
+def test_cli_version_uses_fallback_when_package_metadata_is_missing() -> None:
+    """Test --version fallback without installed package metadata."""
+    with (
+        patch("src.main.load_config", side_effect=AssertionError("load_config should not run")),
+        patch("src.main.version", side_effect=PackageNotFoundError),
+    ):
+        result = runner.invoke(app, ["--version"])
+
+    assert result.exit_code == 0
+    assert result.stdout.strip() == "jppt version 0.1.0"
 
 
 def test_cli_help() -> None:
@@ -267,3 +274,23 @@ def test_api_command_uses_settings_defaults(
     assert mock_run_api_server.call_args.kwargs["host"] == "127.0.0.1"
     assert mock_run_api_server.call_args.kwargs["port"] == 9100
     assert mock_run_api_server.call_args.kwargs["reload"] is True
+
+
+@patch("src.main.load_config")
+@patch("src.main.setup_logger")
+@patch("src.utils.api_runner.run_api_server")
+def test_api_command_passes_effective_log_level_to_api_runner(
+    mock_run_api_server, mock_setup_logger: AsyncMock, mock_load_config: AsyncMock
+) -> None:
+    from src.utils.config import Settings
+
+    mock_load_config.return_value = Settings(
+        app={"name": "test-app", "version": "0.1.0", "debug": False},
+        logging={"level": "INFO", "json_logs": False},
+        telegram={"enabled": False},
+    )
+
+    result = runner.invoke(app, ["api", "--log-level", "ERROR"])
+
+    assert result.exit_code == 0
+    assert mock_run_api_server.call_args.kwargs["log_level"] == "ERROR"

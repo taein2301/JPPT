@@ -17,5 +17,5 @@ async def test_run_batch() -> None:
         # Should complete without error
         await run_batch(settings, "prod")
 
-    assert mock_send.await_args_list[0].args[0] == "[jppt] 📦 batch start\nEnv : prod"
-    assert mock_send.await_args_list[1].args[0] == "[jppt] ✅ batch completed\nReason : completed"
+    assert mock_send.await_args_list[0].args[0] == "[JPPT] 📦 batch start\nEnv : prod"
+    assert mock_send.await_args_list[1].args[0] == "[JPPT] ✅ batch completed\nReason : completed"

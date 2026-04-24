@@ -96,7 +96,7 @@ class TelegramNotifier:
             env: 실행 환경 이름
             reason: 종료/완료 사유
         """
-        display_name = app_name.strip()
+        display_name = app_name.strip().upper()
         if not (display_name.startswith("[") and display_name.endswith("]")):
             display_name = f"[{display_name}]"
 
@@ -138,10 +138,11 @@ class TelegramNotifier:
             return False
         if self._is_silent_time():
             logger.info(
-                "Telegram notification skipped due to silent time: {}-{} ({})",
+                "Telegram notification skipped due to silent time: {}-{} ({}) message={}",
                 self._silent_time.start,
                 self._silent_time.end,
                 self._silent_time.timezone,
+                message,
             )
             return False
 
@@ -151,7 +152,7 @@ class TelegramNotifier:
                 text=message,
                 parse_mode=parse_mode,
             )
-            logger.info(f"Telegram message sent to {self.chat_id}")
+            logger.info("Telegram message sent to {} message={}", self.chat_id, message)
             return True
         except TimedOut:
             logger.warning(

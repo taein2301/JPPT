@@ -11,7 +11,10 @@ from src.utils.telegram import TelegramNotifier
 
 @pytest.mark.asyncio
 async def test_telegram_send_message() -> None:
-    with patch("src.utils.telegram.Bot") as mock_bot_class:
+    with (
+        patch("src.utils.telegram.Bot") as mock_bot_class,
+        patch("src.utils.telegram.logger.info") as mock_info,
+    ):
         mock_bot = AsyncMock()
         mock_bot_class.return_value = mock_bot
 
@@ -20,6 +23,12 @@ async def test_telegram_send_message() -> None:
 
         mock_bot.send_message.assert_called_once_with(
             chat_id="12345", text="test message", parse_mode=None
+        )
+        assert any(
+            "Telegram message sent to {} message={}" == str(call.args[0])
+            and call.args[1] == "12345"
+            and call.args[2] == "test message"
+            for call in mock_info.call_args_list
         )
 
 
@@ -63,7 +72,10 @@ async def test_telegram_timeout_is_warning_not_error() -> None:
 
 @pytest.mark.asyncio
 async def test_telegram_send_message_skipped_during_silent_time() -> None:
-    with patch("src.utils.telegram.Bot") as mock_bot_class:
+    with (
+        patch("src.utils.telegram.Bot") as mock_bot_class,
+        patch("src.utils.telegram.logger.info") as mock_info,
+    ):
         mock_bot = AsyncMock()
         mock_bot_class.return_value = mock_bot
         notifier = TelegramNotifier(
@@ -83,6 +95,12 @@ async def test_telegram_send_message_skipped_during_silent_time() -> None:
 
     assert result is False
     mock_bot.send_message.assert_not_called()
+    assert any(
+        "Telegram notification skipped due to silent time: {}-{} ({}) message={}"
+        == str(call.args[0])
+        and call.args[4] == "test message"
+        for call in mock_info.call_args_list
+    )
 
 
 @pytest.mark.asyncio
@@ -169,19 +187,19 @@ async def test_telegram_send_error_uses_template() -> None:
 
 def test_format_status_message_with_env() -> None:
     message = TelegramNotifier.format_status_message("j-upbit", "start", env="prod")
-    assert message == "[j-upbit] 🚀 start\nEnv : prod"
+    assert message == "[J-UPBIT] 🚀 start\nEnv : prod"
 
 
 def test_format_status_message_with_reason() -> None:
     message = TelegramNotifier.format_status_message("j-upbit", "stop", reason="gracefully")
-    assert message == "[j-upbit] 🛑 stop\nReason : gracefully"
+    assert message == "[J-UPBIT] 🛑 stop\nReason : gracefully"
 
 
 def test_format_status_message_wraps_unbracketed_app_name() -> None:
     message = TelegramNotifier.format_status_message("j-bithumb", "start", env="dev")
-    assert message == "[j-bithumb] 🚀 start\nEnv : dev"
+    assert message == "[J-BITHUMB] 🚀 start\nEnv : dev"
 
 
 def test_format_status_message_with_batch_status() -> None:
     message = TelegramNotifier.format_status_message("j-upbit", "batch completed", reason="done")
-    assert message == "[j-upbit] ✅ batch completed\nReason : done"
+    assert message == "[J-UPBIT] ✅ batch completed\nReason : done"

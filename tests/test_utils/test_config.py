@@ -67,6 +67,20 @@ def test_load_config_missing_file(tmp_path: Path) -> None:
         load_config(env="dev", config_dir=tmp_path)
 
 
+def test_load_config_rejects_non_mapping_root(tmp_path: Path) -> None:
+    """YAML 루트가 mapping이 아니면 ConfigurationError를 발생시켜야 한다."""
+    (tmp_path / "dev.yaml").write_text(
+        """
+- just
+- a
+- list
+"""
+    )
+
+    with pytest.raises(ConfigurationError, match="Config file root must be a mapping"):
+        load_config(env="dev", config_dir=tmp_path)
+
+
 def test_load_config_with_telegram_silent_time(tmp_path: Path) -> None:
     """텔레그램 silent time 설정을 로드해야 한다."""
     (tmp_path / "dev.yaml").write_text(

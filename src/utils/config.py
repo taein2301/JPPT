@@ -6,7 +6,7 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
@@ -170,6 +170,11 @@ def load_config(env: str = "dev", config_dir: Path | None = None) -> Settings:
         )
 
     with config_file.open(encoding="utf-8") as f:
-        config_data: dict[str, Any] = yaml.safe_load(f) or {}
+        config_data: Any = yaml.safe_load(f)
 
-    return Settings(**config_data)
+    if config_data is None:
+        config_data = {}
+    elif not isinstance(config_data, Mapping):
+        raise ConfigurationError(f"Config file root must be a mapping: {config_file}")
+
+    return Settings(**dict(config_data))

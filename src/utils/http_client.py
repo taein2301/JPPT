@@ -54,6 +54,14 @@ class HttpClient:
         if self._client:
             await self._client.aclose()
 
+    @staticmethod
+    def _format_http_error(error: httpx.HTTPError) -> str:
+        error_message = str(error).strip()
+        error_type = type(error).__name__
+        if error_message:
+            return f"{error_type}: {error_message}"
+        return error_type
+
     async def get(
         self,
         url: str,
@@ -82,8 +90,9 @@ class HttpClient:
             response.raise_for_status()
             return response
         except httpx.HTTPError as e:
-            logger.error(f"HTTP GET failed: {url} - {e}")
-            raise HttpClientError(f"HTTP GET failed: {e}") from e
+            error_message = self._format_http_error(e)
+            logger.error(f"HTTP GET failed: {url} - {error_message}")
+            raise HttpClientError(f"HTTP GET failed: {error_message}") from e
 
     async def post(
         self,
@@ -114,6 +123,17 @@ class HttpClient:
             response = await self._client.post(url, json=json, data=data, headers=headers)
             response.raise_for_status()
             return response
+        except httpx.HTTPStatusError as e:
+            error_message = self._format_http_error(e)
+            response_text = e.response.text.strip()
+            if response_text:
+                logger.error(f"HTTP POST failed: {url} - {error_message} - response={response_text}")
+                raise HttpClientError(
+                    f"HTTP POST failed: {error_message} - response={response_text}"
+                ) from e
+            logger.error(f"HTTP POST failed: {url} - {error_message}")
+            raise HttpClientError(f"HTTP POST failed: {error_message}") from e
         except httpx.HTTPError as e:
-            logger.error(f"HTTP POST failed: {url} - {e}")
-            raise HttpClientError(f"HTTP POST failed: {e}") from e
+            error_message = self._format_http_error(e)
+            logger.error(f"HTTP POST failed: {url} - {error_message}")
+            raise HttpClientError(f"HTTP POST failed: {error_message}") from e

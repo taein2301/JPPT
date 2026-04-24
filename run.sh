@@ -58,7 +58,7 @@ check_config() {
         print_error "Configuration file not found: $config_file"
         echo ""
         echo "Create it with:"
-        echo "  cp config/dev.yaml.example $config_file"
+        echo "  cp config/prod.yaml.example $config_file"
         echo ""
         echo "Or run the setup script:"
         echo "  ./scripts/create_app.sh"
@@ -71,6 +71,42 @@ setup_logs_dir() {
     if [ ! -d "$logs_dir" ]; then
         mkdir -p "$logs_dir"
     fi
+}
+
+extract_app_name() {
+    local env=$1
+    local config_file="config/${env}.yaml"
+    local app_name
+
+    app_name=$(grep "name:" "$config_file" | head -1 | sed 's/.*: *"\(.*\)".*/\1/')
+    if [ -z "$app_name" ]; then
+        app_name="jppt"
+    fi
+
+    echo "$app_name"
+}
+
+build_start_process_tag() {
+    local app_name=$1
+    local env=$2
+
+    echo "${app_name}:start:${env}"
+}
+
+stop_existing_start_process() {
+    local app_name=$1
+    local env=$2
+    local process_pattern
+    local existing_pids
+    process_pattern=$(build_start_process_tag "$app_name" "$env")
+    existing_pids=$(pgrep -f "$process_pattern" || true)
+
+    if [ -z "$existing_pids" ]; then
+        return 0
+    fi
+
+    print_info "Existing start-mode process found. Stopping PID(s): $(echo "$existing_pids" | tr '\n' ' ' | xargs)"
+    pkill -TERM -f "$process_pattern"
 }
 
 # ============================================================================
@@ -88,7 +124,7 @@ ARGUMENTS:
             - start: Run in daemon/app mode
             - batch: Run in one-shot batch mode
 
-    ENV     Environment (default: dev)
+    ENV     Environment (default: prod)
             - dev:  Development environment
             - prod: Production environment
 
@@ -96,8 +132,8 @@ OPTIONS:
     --help, -h    Show this help message
 
 EXAMPLES:
-    ./run.sh                # Start mode, dev environment
-    ./run.sh batch          # Batch mode, dev environment
+    ./run.sh                # Start mode, prod environment
+    ./run.sh batch          # Batch mode, prod environment
     ./run.sh start prod     # Start mode, prod environment
     ./run.sh batch prod     # Batch mode, prod environment
 
@@ -115,7 +151,7 @@ EOF
 main() {
     # Parse arguments
     MODE="${1:-start}"
-    ENV="${2:-dev}"
+    ENV="${2:-prod}"
 
     # Check for help flag
     if [ "$MODE" = "--help" ] || [ "$MODE" = "-h" ]; then
@@ -141,11 +177,10 @@ main() {
     check_uv
     check_config "$ENV"
     setup_logs_dir
+    APP_NAME=$(extract_app_name "$ENV")
 
-    # Extract app name from selected config
-    APP_NAME=$(grep "name:" "config/${ENV}.yaml" | head -1 | sed 's/.*: *"\(.*\)".*/\1/')
-    if [ -z "$APP_NAME" ]; then
-        APP_NAME="jppt"  # Fallback to default if extraction fails
+    if [ "$MODE" = "start" ]; then
+        stop_existing_start_process "$APP_NAME" "$ENV"
     fi
 
     # Determine log file name
@@ -173,7 +208,13 @@ main() {
     # Run the application
     # Note: We don't use 'set -e' for this command because we want to capture its exit code
     set +e
-    uv run python -m src.main "$MODE" --env "$ENV"
+    if [ "$MODE" = "start" ]; then
+        PROCESS_TAG=$(build_start_process_tag "$APP_NAME" "$ENV")
+        bash -c 'exec -a "$1" uv run python -m src.main "$2" --env "$3"' \
+            bash "$PROCESS_TAG" "$MODE" "$ENV"
+    else
+        uv run python -m src.main "$MODE" --env "$ENV"
+    fi
     EXIT_CODE=$?
     set -e
 

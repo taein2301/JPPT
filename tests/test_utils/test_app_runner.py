@@ -27,5 +27,5 @@ async def test_run_app_shutdown() -> None:
         # Should exit quickly
         await run_app(settings, "prod")
 
-    assert mock_send.await_args_list[0].args[0] == "[jppt] 🚀 start\nEnv : prod"
-    assert mock_send.await_args_list[1].args[0] == "[jppt] 🛑 stop\nReason : gracefully"
+    assert mock_send.await_args_list[0].args[0] == "[JPPT] 🚀 start\nEnv : prod"
+    assert mock_send.await_args_list[1].args[0] == "[JPPT] 🛑 stop\nReason : gracefully"

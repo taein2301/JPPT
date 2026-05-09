@@ -226,6 +226,28 @@ telegram:
         load_config(env="dev", config_dir=tmp_path)
 
 
+def test_remote_control_rejects_boolean_allowed_chat_ids(tmp_path: Path) -> None:
+    """allowed_chat_ids에 boolean 값은 허용하지 않아야 한다."""
+    (tmp_path / "dev.yaml").write_text(
+        """
+telegram:
+  enabled: true
+  bot_token: "token"
+  chat_id: "12345"
+  remote_control:
+    enabled: true
+    allowed_chat_ids: true
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="allowed_chat_ids must be a list of chat ids",
+    ):
+        load_config(env="dev", config_dir=tmp_path)
+
+
 def test_remote_control_requires_telegram_enabled(tmp_path: Path) -> None:
     """원격제어가 켜져 있으면 telegram.enabled도 켜져 있어야 한다."""
     (tmp_path / "dev.yaml").write_text(

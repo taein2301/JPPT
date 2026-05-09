@@ -81,6 +81,8 @@ class TelegramRemoteControlConfig(BaseModel):
         """Telegram chat id를 문자열 리스트로 정규화합니다."""
         if value is None:
             return []
+        if isinstance(value, bool):
+            raise ValueError("allowed_chat_ids must be a list of chat ids")
         if isinstance(value, (str, int)):
             return [str(value)]
         if isinstance(value, list):

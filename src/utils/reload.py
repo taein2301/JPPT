@@ -73,7 +73,7 @@ class ReloadCoordinator:
                 await self.apply_settings(next_settings)
             except Exception as exc:  # noqa: BLE001 - 실패 상태를 결과로 반환해야 한다.
                 error_type = type(exc).__name__
-                error_message = str(exc)
+                error_message = "config reload failed"
                 self.last_reload_status = "failed"
                 self.last_reload_at = datetime.now(tz=UTC)
                 self.last_reload_error = f"{error_type}: {error_message}"

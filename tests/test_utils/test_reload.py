@@ -86,14 +86,11 @@ async def test_reload_load_failure_keeps_old_settings_and_does_not_apply(
     assert result.succeeded is False
     assert result.settings is current_settings
     assert result.error_type == "ConfigurationError"
-    assert "Config file root must be a mapping" in str(result.error_message)
+    assert result.error_message == "config reload failed"
     assert coordinator.current_settings is current_settings
     assert coordinator.reload_count == 0
     assert coordinator.last_reload_status == "failed"
-    assert coordinator.last_reload_error is not None
-    assert coordinator.last_reload_error.startswith(
-        "ConfigurationError: Config file root must be a mapping:"
-    )
+    assert coordinator.last_reload_error == "ConfigurationError: config reload failed"
     assert apply_settings.await_count == 0
 
 
@@ -117,13 +114,63 @@ async def test_reload_apply_settings_failure_keeps_old_settings_and_reports_runt
     assert result.succeeded is False
     assert result.settings is current_settings
     assert result.error_type == "RuntimeError"
-    assert result.error_message == "apply failed"
+    assert result.error_message == "config reload failed"
     assert coordinator.current_settings is current_settings
     assert coordinator.reload_count == 0
     assert coordinator.last_reload_status == "failed"
-    assert coordinator.last_reload_error == "RuntimeError: apply failed"
+    assert coordinator.last_reload_error == "RuntimeError: config reload failed"
     apply_settings.assert_awaited_once()
     assert apply_settings.await_args.args[0].app.name == "new-app"
+
+
+@pytest.mark.asyncio
+async def test_reload_validation_failure_does_not_expose_new_telegram_secrets(
+    tmp_path: Path,
+) -> None:
+    """새 설정 검증 실패 메시지는 새 Telegram secret을 노출하지 않아야 한다."""
+    current_settings = Settings(app={"name": "old-app"})
+    tmp_path.joinpath("dev.yaml").write_text(
+        """
+app:
+  name: "new-app"
+telegram:
+  enabled: true
+  bot_token: "new-secret-token"
+  chat_id: "99999"
+  remote_control:
+    enabled: true
+    allowed_chat_ids:
+      - "99999"
+    commands:
+      reload: true
+      status: true
+      help: true
+      unknown_secret: "new-secret-token"
+""",
+        encoding="utf-8",
+    )
+    apply_settings = AsyncMock()
+    coordinator = ReloadCoordinator(
+        current_settings=current_settings,
+        env="dev",
+        config_dir=tmp_path,
+        apply_settings=apply_settings,
+    )
+
+    result = await coordinator.reload()
+    message = coordinator.status_message()
+
+    assert result.succeeded is False
+    assert result.error_type == "ValidationError"
+    assert result.settings is current_settings
+    assert coordinator.current_settings is current_settings
+    assert apply_settings.await_count == 0
+    assert "new-secret-token" not in result.message
+    assert "99999" not in result.message
+    assert "new-secret-token" not in str(result.error_message)
+    assert "99999" not in str(result.error_message)
+    assert "new-secret-token" not in message
+    assert "99999" not in message
 
 
 def test_status_message_includes_reload_state_without_telegram_secrets() -> None:

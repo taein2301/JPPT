@@ -1,7 +1,7 @@
 """Telegram 원격제어 명령 처리 테스트."""
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -36,6 +36,23 @@ def _update(chat_id: int | str) -> SimpleNamespace:
     return SimpleNamespace(
         effective_chat=SimpleNamespace(id=chat_id),
         effective_message=SimpleNamespace(reply_text=reply_text),
+    )
+
+
+def _telegram_application() -> SimpleNamespace:
+    """테스트용 python-telegram-bot Application 대역을 생성합니다."""
+    updater = SimpleNamespace(
+        start_polling=AsyncMock(),
+        stop=AsyncMock(),
+    )
+    return SimpleNamespace(
+        add_handler=Mock(),
+        initialize=AsyncMock(),
+        start=AsyncMock(),
+        stop=AsyncMock(),
+        shutdown=AsyncMock(),
+        updater=updater,
+        running=True,
     )
 
 
@@ -161,3 +178,65 @@ def test_update_remote_control_replaces_allowed_chat_ids() -> None:
 
     assert controller.is_chat_allowed("11111") is False
     assert controller.is_chat_allowed("22222") is True
+
+
+@pytest.mark.asyncio
+async def test_start_and_stop_manage_application_lifecycle() -> None:
+    """start/stop은 PTB application lifecycle 메서드를 수동 순서로 호출해야 한다."""
+    application = _telegram_application()
+    builder = Mock()
+    builder.token.return_value = builder
+    builder.build.return_value = application
+    controller = TelegramRemoteController(
+        bot_token="token",
+        remote_control=_remote_control(),
+        reload_callback=AsyncMock(),
+        status_callback=Mock(return_value="status"),
+    )
+
+    with patch("src.utils.telegram_remote.ApplicationBuilder", return_value=builder):
+        await controller.start()
+
+    builder.token.assert_called_once_with("token")
+    builder.build.assert_called_once_with()
+    assert application.add_handler.call_count == 3
+    application.initialize.assert_awaited_once_with()
+    application.start.assert_awaited_once_with()
+    application.updater.start_polling.assert_awaited_once_with()
+    assert controller.application is application
+
+    await controller.stop()
+
+    application.updater.stop.assert_awaited_once_with()
+    application.stop.assert_awaited_once_with()
+    application.shutdown.assert_awaited_once_with()
+    assert controller.application is None
+
+
+@pytest.mark.asyncio
+async def test_start_cleans_up_application_when_polling_start_fails() -> None:
+    """polling 시작 실패 시 시작된 application을 정리하고 예외를 다시 던져야 한다."""
+    application = _telegram_application()
+    application.updater.start_polling.side_effect = RuntimeError("polling failed")
+    builder = Mock()
+    builder.token.return_value = builder
+    builder.build.return_value = application
+    controller = TelegramRemoteController(
+        bot_token="token",
+        remote_control=_remote_control(),
+        reload_callback=AsyncMock(),
+        status_callback=Mock(return_value="status"),
+    )
+
+    with (
+        patch("src.utils.telegram_remote.ApplicationBuilder", return_value=builder),
+        pytest.raises(RuntimeError, match="polling failed"),
+    ):
+        await controller.start()
+
+    application.initialize.assert_awaited_once_with()
+    application.start.assert_awaited_once_with()
+    application.updater.start_polling.assert_awaited_once_with()
+    application.stop.assert_awaited_once_with()
+    application.shutdown.assert_awaited_once_with()
+    assert controller.application is None

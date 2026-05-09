@@ -64,14 +64,28 @@ class TelegramRemoteController:
         application.add_handler(CommandHandler("status", self.handle_status))
         application.add_handler(CommandHandler("help", self.handle_help))
 
-        await application.initialize()
-        await application.start()
-        if application.updater is None:
-            logger.warning("Telegram remote controller updater is not available")
-        else:
-            await application.updater.start_polling()
-
         self.application = application
+        initialized = False
+        started = False
+        try:
+            await application.initialize()
+            initialized = True
+            await application.start()
+            started = True
+            if application.updater is None:
+                logger.warning("Telegram remote controller updater is not available")
+            else:
+                await application.updater.start_polling()
+        except Exception:
+            try:
+                if started and application.running:
+                    await application.stop()
+                if initialized:
+                    await application.shutdown()
+            finally:
+                self.application = None
+            raise
+
         logger.info("Telegram remote controller started")
 
     async def stop(self) -> None:

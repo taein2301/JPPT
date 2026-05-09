@@ -116,7 +116,25 @@ async def test_status_replies_with_status_callback_output_and_does_not_reload() 
 
 @pytest.mark.asyncio
 async def test_help_lists_only_enabled_commands_in_order() -> None:
-    """help는 켜진 명령만 /reload, /status, /help 순서로 나열해야 한다."""
+    """help는 모든 명령이 켜졌을 때 고정 순서로 나열해야 한다."""
+    controller = TelegramRemoteController(
+        bot_token="token",
+        remote_control=_remote_control(),
+        reload_callback=AsyncMock(),
+        status_callback=Mock(return_value="status"),
+    )
+    update = _update("12345")
+
+    await controller.handle_help(update, SimpleNamespace())
+
+    update.effective_message.reply_text.assert_awaited_once_with(
+        "Commands:\n/reload\n/status\n/help"
+    )
+
+
+@pytest.mark.asyncio
+async def test_help_omits_disabled_status_command() -> None:
+    """help는 꺼진 status 명령을 제외하고 켜진 명령만 나열해야 한다."""
     controller = TelegramRemoteController(
         bot_token="token",
         remote_control=_remote_control(status_enabled=False),
@@ -127,7 +145,7 @@ async def test_help_lists_only_enabled_commands_in_order() -> None:
 
     await controller.handle_help(update, SimpleNamespace())
 
-    update.effective_message.reply_text.assert_awaited_once_with("/reload\n/help")
+    update.effective_message.reply_text.assert_awaited_once_with("Commands:\n/reload\n/help")
 
 
 def test_update_remote_control_replaces_allowed_chat_ids() -> None:

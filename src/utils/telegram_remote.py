@@ -134,7 +134,7 @@ class TelegramRemoteController:
             await self._reply(update, "help command disabled")
             return
 
-        await self._reply(update, "\n".join(self._enabled_commands()))
+        await self._reply(update, "Commands:\n" + "\n".join(self._enabled_commands()))
 
     def _is_update_allowed(self, update: Update) -> bool:
         """update의 chat id가 원격제어 허용 대상인지 확인합니다."""

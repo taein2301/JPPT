@@ -45,7 +45,7 @@ async def test_reload_success_updates_state_and_calls_apply_settings(tmp_path: P
     _write_config(tmp_path, app_name="new-app")
     apply_settings = AsyncMock()
     coordinator = ReloadCoordinator(
-        current_settings=current_settings,
+        settings=current_settings,
         env="dev",
         config_dir=tmp_path,
         apply_settings=apply_settings,
@@ -75,7 +75,7 @@ async def test_reload_load_failure_keeps_old_settings_and_does_not_apply(
     tmp_path.joinpath("dev.yaml").write_text("- invalid\n- root\n", encoding="utf-8")
     apply_settings = AsyncMock()
     coordinator = ReloadCoordinator(
-        current_settings=current_settings,
+        settings=current_settings,
         env="dev",
         config_dir=tmp_path,
         apply_settings=apply_settings,
@@ -103,7 +103,7 @@ async def test_reload_apply_settings_failure_keeps_old_settings_and_reports_runt
     _write_config(tmp_path, app_name="new-app")
     apply_settings = AsyncMock(side_effect=RuntimeError("apply failed"))
     coordinator = ReloadCoordinator(
-        current_settings=current_settings,
+        settings=current_settings,
         env="dev",
         config_dir=tmp_path,
         apply_settings=apply_settings,
@@ -151,7 +151,7 @@ telegram:
     )
     apply_settings = AsyncMock()
     coordinator = ReloadCoordinator(
-        current_settings=current_settings,
+        settings=current_settings,
         env="dev",
         config_dir=tmp_path,
         apply_settings=apply_settings,
@@ -188,7 +188,7 @@ def test_status_message_includes_reload_state_without_telegram_secrets() -> None
         },
     )
     coordinator = ReloadCoordinator(
-        current_settings=settings,
+        settings=settings,
         env="prod",
         config_dir=Path("config"),
         apply_settings=AsyncMock(),
@@ -209,3 +209,34 @@ def test_status_message_includes_reload_state_without_telegram_secrets() -> None
     assert "Last Reload Error : RuntimeError: token=[redacted] chat=[redacted]" in message
     assert "123456:SECRET" not in message
     assert "-100999" not in message
+
+
+def test_status_message_redacts_overlapping_telegram_secrets_by_longest_first() -> None:
+    """겹치는 Telegram secret은 긴 값부터 치환해서 부분 누출을 막아야 한다."""
+    settings = Settings(
+        app={"name": "secret-app"},
+        telegram={
+            "enabled": True,
+            "bot_token": "123456:SECRET",
+            "chat_id": "123456",
+            "remote_control": {
+                "enabled": True,
+                "allowed_chat_ids": ["123456"],
+            },
+        },
+    )
+    coordinator = ReloadCoordinator(
+        settings=settings,
+        env="prod",
+        config_dir=Path("config"),
+        apply_settings=AsyncMock(),
+    )
+    coordinator.last_reload_status = "failed"
+    coordinator.last_reload_error = "RuntimeError: token=123456:SECRET chat=123456"
+
+    message = coordinator.status_message()
+
+    assert "123456:SECRET" not in message
+    assert "123456" not in message
+    assert "[redacted]:SECRET" not in message
+    assert "RuntimeError: token=[redacted] chat=[redacted]" in message

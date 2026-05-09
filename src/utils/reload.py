@@ -41,7 +41,7 @@ class ReloadCoordinator:
     def __init__(
         self,
         *,
-        current_settings: Settings,
+        settings: Settings,
         env: str,
         config_dir: Path | None,
         apply_settings: ApplySettings,
@@ -49,12 +49,12 @@ class ReloadCoordinator:
         """ReloadCoordinator를 초기화합니다.
 
         Args:
-            current_settings: 현재 실행 중인 설정
+            settings: 현재 실행 중인 설정
             env: 다시 로드할 설정 환경 이름
             config_dir: 설정 파일 디렉토리
             apply_settings: 새 설정을 런타임 리소스에 적용하는 async 콜백
         """
-        self.current_settings = current_settings
+        self.current_settings = settings
         self.env = env
         self.config_dir = config_dir
         self.apply_settings = apply_settings
@@ -124,12 +124,11 @@ class ReloadCoordinator:
         """상태 메시지에서 Telegram 인증/대상 값을 제거합니다."""
         redacted = value
         telegram = self.current_settings.telegram
-        secrets = {
+        secrets = [
             telegram.bot_token,
             telegram.chat_id,
             *telegram.remote_control.allowed_chat_ids,
-        }
-        for secret in secrets:
-            if secret:
-                redacted = redacted.replace(secret, "[redacted]")
+        ]
+        for secret in sorted((secret for secret in secrets if secret), key=len, reverse=True):
+            redacted = redacted.replace(secret, "[redacted]")
         return redacted

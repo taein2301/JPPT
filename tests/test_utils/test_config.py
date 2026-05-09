@@ -248,6 +248,80 @@ telegram:
         load_config(env="dev", config_dir=tmp_path)
 
 
+@pytest.mark.parametrize("allowed_chat_ids", ["null", '""'])
+def test_remote_control_rejects_invalid_allowed_chat_ids_scalar(
+    tmp_path: Path,
+    allowed_chat_ids: str,
+) -> None:
+    """allowed_chat_ids scalar 값은 유효한 chat id만 허용해야 한다."""
+    (tmp_path / "dev.yaml").write_text(
+        f"""
+telegram:
+  enabled: true
+  bot_token: "token"
+  chat_id: "12345"
+  remote_control:
+    enabled: true
+    allowed_chat_ids: {allowed_chat_ids}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="allowed_chat_ids must be a list of chat ids",
+    ):
+        load_config(env="dev", config_dir=tmp_path)
+
+
+@pytest.mark.parametrize("allowed_chat_ids", ["[true]", "[null]", '[""]'])
+def test_remote_control_rejects_invalid_allowed_chat_ids_list_item(
+    tmp_path: Path,
+    allowed_chat_ids: str,
+) -> None:
+    """allowed_chat_ids list 항목도 유효한 chat id만 허용해야 한다."""
+    (tmp_path / "dev.yaml").write_text(
+        f"""
+telegram:
+  enabled: true
+  bot_token: "token"
+  chat_id: "12345"
+  remote_control:
+    enabled: true
+    allowed_chat_ids: {allowed_chat_ids}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="allowed_chat_ids must be a list of chat ids",
+    ):
+        load_config(env="dev", config_dir=tmp_path)
+
+
+def test_remote_control_rejects_unknown_command_key(tmp_path: Path) -> None:
+    """remote_control.commands의 알 수 없는 키는 거부해야 한다."""
+    (tmp_path / "dev.yaml").write_text(
+        """
+telegram:
+  enabled: true
+  bot_token: "token"
+  chat_id: "12345"
+  remote_control:
+    enabled: true
+    allowed_chat_ids:
+      - "12345"
+    commands:
+      relaod: true
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        load_config(env="dev", config_dir=tmp_path)
+
+
 def test_remote_control_requires_telegram_enabled(tmp_path: Path) -> None:
     """원격제어가 켜져 있으면 telegram.enabled도 켜져 있어야 한다."""
     (tmp_path / "dev.yaml").write_text(

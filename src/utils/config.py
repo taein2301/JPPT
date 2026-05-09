@@ -11,7 +11,7 @@ from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -57,6 +57,8 @@ class TelegramRemoteCommandsConfig(BaseModel):
         help: 도움말 명령 활성화 여부
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     reload: bool = Field(default=True)
     status: bool = Field(default=True)
     help: bool = Field(default=True)
@@ -71,23 +73,32 @@ class TelegramRemoteControlConfig(BaseModel):
         commands: 명령별 활성화 설정
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     enabled: bool = Field(default=False)
     allowed_chat_ids: list[str] = Field(default_factory=list)
     commands: TelegramRemoteCommandsConfig = Field(default_factory=TelegramRemoteCommandsConfig)
+
+    @staticmethod
+    def _normalize_chat_id(value: object) -> str:
+        """Telegram chat id 단일 값을 문자열로 정규화합니다."""
+        if value is None or isinstance(value, bool):
+            raise ValueError("allowed_chat_ids must be a list of chat ids")
+        if isinstance(value, str):
+            if value.strip() == "":
+                raise ValueError("allowed_chat_ids must be a list of chat ids")
+            return value
+        if isinstance(value, int):
+            return str(value)
+        raise ValueError("allowed_chat_ids must be a list of chat ids")
 
     @field_validator("allowed_chat_ids", mode="before")
     @classmethod
     def normalize_allowed_chat_ids(cls, value: object) -> list[str]:
         """Telegram chat id를 문자열 리스트로 정규화합니다."""
-        if value is None:
-            return []
-        if isinstance(value, bool):
-            raise ValueError("allowed_chat_ids must be a list of chat ids")
-        if isinstance(value, (str, int)):
-            return [str(value)]
         if isinstance(value, list):
-            return [str(item) for item in value]
-        raise ValueError("allowed_chat_ids must be a list of chat ids")
+            return [cls._normalize_chat_id(item) for item in value]
+        return [cls._normalize_chat_id(value)]
 
     @model_validator(mode="after")
     def validate_enabled_config(self) -> "TelegramRemoteControlConfig":

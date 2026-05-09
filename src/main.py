@@ -65,10 +65,17 @@ def _resolve_log_level(config_level: str, log_level: str | None, verbose: bool) 
     return config_level
 
 
+def _resolve_config_dir(config: str | None) -> Path | None:
+    """CLI config 파일 옵션에서 설정 디렉토리를 추출합니다."""
+    if config is None:
+        return None
+    return Path(config).parent
+
+
 def _load_settings(env: str, config: str | None) -> Settings:
     """CLI 옵션에 따라 설정을 로드합니다."""
-    if config:
-        config_dir = Path(config).parent
+    config_dir = _resolve_config_dir(config)
+    if config_dir is not None:
         return load_config(env=env, config_dir=config_dir)
     return load_config(env=env)
 
@@ -150,6 +157,7 @@ def start(
     주기적인 작업을 수행하거나 신호를 받을 때까지 계속 실행되는 모드입니다.
     Ctrl+C 또는 SIGTERM 신호로 graceful shutdown이 가능합니다.
     """
+    config_dir = _resolve_config_dir(config)
     settings = _load_settings(env, config)
     _configure_runtime(
         mode="start",
@@ -166,7 +174,15 @@ def start(
     # 앱 실행 (비동기)
     from src.utils.app_runner import run_app
 
-    asyncio.run(run_app(settings, env))
+    asyncio.run(
+        run_app(
+            settings,
+            env,
+            config_dir=config_dir,
+            log_level=log_level,
+            verbose=verbose,
+        )
+    )
 
 
 @app.command()

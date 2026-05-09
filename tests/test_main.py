@@ -101,6 +101,48 @@ def test_start_command_basic(
 @patch("src.main.asyncio.run")
 @patch("src.main.setup_logger")
 @patch("src.main.load_config")
+def test_start_command_passes_reload_runtime_options(
+    mock_load_config: AsyncMock,
+    mock_setup_logger: AsyncMock,
+    mock_asyncio_run: AsyncMock,
+    temp_config_dir: Path,
+) -> None:
+    """start 명령은 reload runtime 옵션을 run_app으로 전달해야 합니다."""
+    from src.utils.config import Settings
+
+    mock_load_config.return_value = Settings(
+        app={"name": "test-app", "version": "0.1.0", "debug": True},
+        logging={"level": "INFO", "json_logs": False},
+        telegram={"enabled": False},
+    )
+
+    custom_config = temp_config_dir / "custom.yaml"
+    result = runner.invoke(
+        app,
+        [
+            "start",
+            "--env",
+            "prod",
+            "--config",
+            str(custom_config),
+            "--log-level",
+            "ERROR",
+            "--verbose",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert mock_load_config.call_args.kwargs["config_dir"] == temp_config_dir
+    coroutine = _capture_coroutine(mock_asyncio_run)
+    assert coroutine.cr_frame.f_locals["config_dir"] == temp_config_dir
+    assert coroutine.cr_frame.f_locals["log_level"] == "ERROR"
+    assert coroutine.cr_frame.f_locals["verbose"] is True
+    coroutine.close()
+
+
+@patch("src.main.asyncio.run")
+@patch("src.main.setup_logger")
+@patch("src.main.load_config")
 def test_start_command_with_verbose(
     mock_load_config: AsyncMock, mock_setup_logger: AsyncMock, mock_asyncio_run: AsyncMock
 ) -> None:

@@ -128,6 +128,58 @@ def _make_retention_handler(retention: str, log_file: Path) -> Callable[[list[st
     return handler
 
 
+def validate_logger_config(
+    *,
+    level: str,
+    log_file: Path,
+    format_str: str,
+    rotation: str,
+    retention: str,
+    json_logs: bool,
+) -> None:
+    """현재 logger를 바꾸지 않고 Loguru 설정값이 유효한지 검증합니다.
+
+    Args:
+        level: 로그 레벨
+        log_file: 실제 로그 파일 경로
+        format_str: 로그 포맷 문자열
+        rotation: 로그 파일 로테이션 주기
+        retention: 로그 파일 보관 기간
+        json_logs: JSON 로그 출력 여부
+    """
+    console_handler_id: int | None = None
+    file_handler_id: int | None = None
+    console_format = _build_console_format(format_str, json_logs)
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_log_file = Path(temp_dir) / log_file.name
+        try:
+            console_handler_id = logger.add(
+                lambda message: None,
+                format=console_format,
+                level=level,
+                colorize=True,
+                backtrace=True,
+                diagnose=True,
+                serialize=json_logs,
+            )
+            file_handler_id = logger.add(
+                temp_log_file,
+                format=format_str,
+                level=level,
+                rotation=rotation,
+                retention=_make_retention_handler(retention, temp_log_file),
+                compression=None,
+                backtrace=True,
+                diagnose=True,
+                serialize=json_logs,
+            )
+        finally:
+            for handler_id in (file_handler_id, console_handler_id):
+                if handler_id is not None:
+                    logger.remove(handler_id)
+
+
 def setup_logger(
     level: str = "INFO",
     log_file: Path | None = None,

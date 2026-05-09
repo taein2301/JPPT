@@ -279,6 +279,56 @@ async def test_reload_failed_remote_restart_preserves_old_controller_and_logger(
 
 
 @pytest.mark.asyncio
+async def test_reload_failed_logger_validation_preserves_old_controller(
+    tmp_path: Path,
+) -> None:
+    """logger 검증 실패 시 새 controller로 교체하지 않고 기존 상태를 유지합니다."""
+    config_dir = tmp_path / "config"
+    _write_remote_config(config_dir, bot_token="new-token")
+    old_settings = _settings(remote_control_enabled=True, bot_token="old-token")
+    old_controller = MagicMock()
+    old_controller.start = AsyncMock()
+    old_controller.stop = AsyncMock()
+    lifecycle = app_runner._RemoteControllerLifecycle(
+        reload_callback=AsyncMock(),
+        status_callback=lambda: "status",
+    )
+
+    with (
+        patch("src.utils.app_runner.TelegramRemoteController", return_value=old_controller)
+        as controller_class,
+        patch(
+            "src.utils.app_runner.validate_logger_config",
+            side_effect=ValueError("bad logger config"),
+        ) as mock_validate_logger_config,
+        patch("src.utils.app_runner.setup_logger") as mock_setup_logger,
+    ):
+        await lifecycle.apply(old_settings)
+        coordinator = ReloadCoordinator(
+            settings=old_settings,
+            env="prod",
+            config_dir=config_dir,
+            apply_settings=lambda next_settings: app_runner._apply_settings_to_runtime(
+                next_settings,
+                remote_lifecycle=lifecycle,
+                log_level=None,
+                verbose=False,
+            ),
+        )
+
+        result = await coordinator.reload()
+
+    assert result.succeeded is False
+    assert result.settings is old_settings
+    assert coordinator.current_settings is old_settings
+    assert lifecycle.controller is old_controller
+    old_controller.stop.assert_not_awaited()
+    assert controller_class.call_count == 1
+    mock_validate_logger_config.assert_called_once()
+    mock_setup_logger.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_remote_lifecycle_stop_failure_keeps_controller_handle() -> None:
     """stop 실패 시 controller handle을 먼저 지우면 이후 복구가 불가능합니다."""
     controller = MagicMock()

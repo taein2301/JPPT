@@ -10,7 +10,7 @@ from pathlib import Path
 from loguru import logger
 
 from src.utils.config import Settings
-from src.utils.logger import setup_logger
+from src.utils.logger import setup_logger, validate_logger_config
 from src.utils.reload import ReloadCoordinator, ReloadResult
 from src.utils.signals import GracefulShutdown, setup_signal_handlers
 from src.utils.telegram import TelegramNotifier
@@ -136,15 +136,24 @@ async def _apply_settings_to_runtime(
     verbose: bool,
 ) -> TelegramNotifier:
     """reload된 설정을 remote controller와 logger/notifier에 적용합니다."""
-    await remote_lifecycle.apply(next_settings)
     effective_log_level = _resolve_log_level(
         next_settings.logging.level,
         log_level,
         verbose,
     )
+    log_file = _build_log_file(next_settings.app.name)
+    validate_logger_config(
+        level=effective_log_level,
+        log_file=log_file,
+        format_str=next_settings.logging.format,
+        json_logs=next_settings.logging.json_logs,
+        rotation=next_settings.logging.rotation,
+        retention=next_settings.logging.retention,
+    )
+    await remote_lifecycle.apply(next_settings)
     setup_logger(
         level=effective_log_level,
-        log_file=_build_log_file(next_settings.app.name),
+        log_file=log_file,
         format_str=next_settings.logging.format,
         json_logs=next_settings.logging.json_logs,
         rotation=next_settings.logging.rotation,

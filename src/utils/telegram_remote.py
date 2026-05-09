@@ -4,7 +4,9 @@
 앱 실행 흐름에 붙이는 작업은 별도 wiring 단계에서 수행합니다.
 """
 
+import asyncio
 from collections.abc import Awaitable, Callable
+from contextvars import ContextVar
 from typing import Any
 
 from loguru import logger
@@ -16,6 +18,22 @@ from src.utils.reload import ReloadResult
 
 ReloadCallback = Callable[[], Awaitable[ReloadResult]]
 StatusCallback = Callable[[], str]
+DeferredCleanup = Callable[[], Awaitable[None]]
+
+_deferred_reload_cleanups: ContextVar[list[DeferredCleanup] | None] = ContextVar(
+    "deferred_reload_cleanups",
+    default=None,
+)
+
+
+def defer_reload_cleanup(cleanup: DeferredCleanup) -> bool:
+    """현재 `/reload` 응답 이후로 cleanup 실행을 지연합니다."""
+    cleanups = _deferred_reload_cleanups.get()
+    if cleanups is None:
+        return False
+
+    cleanups.append(cleanup)
+    return True
 
 
 class TelegramRemoteController:
@@ -42,6 +60,7 @@ class TelegramRemoteController:
         self.reload_callback = reload_callback
         self.status_callback = status_callback
         self.application: Application[Any, Any, Any, Any, Any, Any] | None = None
+        self._deferred_cleanup_tasks: set[asyncio.Task[None]] = set()
 
     def update_remote_control(self, remote_control: TelegramRemoteControlConfig) -> None:
         """원격제어 설정을 새 설정으로 교체합니다."""
@@ -122,8 +141,14 @@ class TelegramRemoteController:
             await self._reply(update, "reload command disabled")
             return
 
-        result = await self.reload_callback()
-        await self._reply(update, result.message)
+        deferred_cleanups: list[DeferredCleanup] = []
+        cleanup_token = _deferred_reload_cleanups.set(deferred_cleanups)
+        try:
+            result = await self.reload_callback()
+            await self._reply(update, result.message)
+        finally:
+            _deferred_reload_cleanups.reset(cleanup_token)
+            self._schedule_deferred_cleanups(deferred_cleanups)
 
     async def handle_status(
         self,
@@ -184,3 +209,18 @@ class TelegramRemoteController:
         if commands.help:
             enabled_commands.append("/help")
         return enabled_commands
+
+    def _schedule_deferred_cleanups(self, cleanups: list[DeferredCleanup]) -> None:
+        """Telegram 응답 이후 실행할 cleanup task를 등록합니다."""
+        for cleanup in cleanups:
+            task = asyncio.create_task(self._run_deferred_cleanup(cleanup))
+            self._deferred_cleanup_tasks.add(task)
+            task.add_done_callback(self._deferred_cleanup_tasks.discard)
+
+    async def _run_deferred_cleanup(self, cleanup: DeferredCleanup) -> None:
+        """현재 command handler가 반환된 뒤 cleanup을 실행합니다."""
+        await asyncio.sleep(0)
+        try:
+            await cleanup()
+        except Exception as exc:  # noqa: BLE001 - background cleanup 실패는 로그로 남깁니다.
+            logger.error(f"Deferred Telegram remote cleanup failed: {exc}")

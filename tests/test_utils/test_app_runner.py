@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -7,7 +8,8 @@ import pytest
 import src.utils.app_runner as app_runner
 from src.utils.app_runner import run_app
 from src.utils.config import Settings
-from src.utils.reload import ReloadCoordinator
+from src.utils.reload import ReloadCoordinator, ReloadResult
+from src.utils.telegram_remote import TelegramRemoteController
 
 
 class _ImmediateShutdown:
@@ -382,6 +384,109 @@ async def test_reload_failed_logger_validation_preserves_old_controller(
     assert controller_class.call_count == 1
     mock_validate_logger_config.assert_called_once()
     mock_setup_logger.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_reload_handler_defers_current_controller_stop_until_after_reply() -> None:
+    """현재 Telegram handler의 controller stop은 응답 이후 background로 지연합니다."""
+    events: list[str] = []
+    old_settings = _settings(remote_control_enabled=True, bot_token="old-token")
+    next_settings = _settings(remote_control_enabled=False)
+    lifecycle = app_runner._RemoteControllerLifecycle(
+        reload_callback=AsyncMock(),
+        status_callback=lambda: "status",
+    )
+
+    async def reload_callback() -> ReloadResult:
+        await lifecycle.apply(next_settings)
+        return ReloadResult(succeeded=True, message="reload ok", settings=next_settings)
+
+    controller = TelegramRemoteController(
+        bot_token="old-token",
+        remote_control=old_settings.telegram.remote_control,
+        reload_callback=reload_callback,
+        status_callback=lambda: "status",
+    )
+
+    async def stop_controller() -> None:
+        events.append("stop")
+
+    async def reply_text(message: str) -> None:
+        assert message == "reload ok"
+        events.append("reply")
+
+    controller.stop = AsyncMock(side_effect=stop_controller)  # type: ignore[method-assign]
+    lifecycle.controller = controller
+    lifecycle._bot_token = "old-token"
+
+    update = MagicMock()
+    update.effective_chat.id = 12345
+    update.effective_message.reply_text = AsyncMock(side_effect=reply_text)
+
+    await controller.handle_reload(update, MagicMock())
+
+    assert events == ["reply"]
+    assert lifecycle.controller is None
+
+    await asyncio.sleep(0)
+    await asyncio.sleep(0)
+
+    assert events == ["reply", "stop"]
+    controller.stop.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_reload_handler_defers_old_controller_stop_on_token_change() -> None:
+    """bot_token 변경 reload도 응답 이후 기존 controller를 background로 중지합니다."""
+    events: list[str] = []
+    old_settings = _settings(remote_control_enabled=True, bot_token="old-token")
+    next_settings = _settings(remote_control_enabled=True, bot_token="new-token")
+    new_controller = MagicMock()
+    new_controller.start = AsyncMock()
+    new_controller.stop = AsyncMock()
+    lifecycle = app_runner._RemoteControllerLifecycle(
+        reload_callback=AsyncMock(),
+        status_callback=lambda: "status",
+    )
+
+    async def reload_callback() -> ReloadResult:
+        with patch("src.utils.app_runner.TelegramRemoteController", return_value=new_controller):
+            await lifecycle.apply(next_settings)
+        return ReloadResult(succeeded=True, message="reload ok", settings=next_settings)
+
+    old_controller = TelegramRemoteController(
+        bot_token="old-token",
+        remote_control=old_settings.telegram.remote_control,
+        reload_callback=reload_callback,
+        status_callback=lambda: "status",
+    )
+
+    async def stop_old_controller() -> None:
+        events.append("stop-old")
+
+    async def reply_text(message: str) -> None:
+        assert message == "reload ok"
+        events.append("reply")
+
+    old_controller.stop = AsyncMock(side_effect=stop_old_controller)  # type: ignore[method-assign]
+    lifecycle.controller = old_controller
+    lifecycle._bot_token = "old-token"
+
+    update = MagicMock()
+    update.effective_chat.id = 12345
+    update.effective_message.reply_text = AsyncMock(side_effect=reply_text)
+
+    await old_controller.handle_reload(update, MagicMock())
+
+    assert events == ["reply"]
+    assert lifecycle.controller is new_controller
+    new_controller.start.assert_awaited_once()
+
+    await asyncio.sleep(0)
+    await asyncio.sleep(0)
+
+    assert events == ["reply", "stop-old"]
+    old_controller.stop.assert_awaited_once()
 
 
 @pytest.mark.asyncio

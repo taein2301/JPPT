@@ -10,12 +10,12 @@ from typing import Literal
 
 from loguru import logger
 
-from src.utils.config import Settings
+from src.utils.config import Settings, TelegramRemoteControlConfig
 from src.utils.logger import setup_logger, validate_logger_config
 from src.utils.reload import ReloadCoordinator, ReloadResult
 from src.utils.signals import GracefulShutdown, setup_signal_handlers
 from src.utils.telegram import TelegramNotifier
-from src.utils.telegram_remote import TelegramRemoteController
+from src.utils.telegram_remote import TelegramRemoteController, defer_reload_cleanup
 
 _RemoteChangeAction = Literal["stop", "start", "restart", "update"]
 
@@ -142,7 +142,7 @@ class _PreparedRemoteControllerChange:
     async def commit(self) -> None:
         """준비된 변경을 현재 lifecycle에 확정합니다."""
         if self.action == "stop":
-            await self.lifecycle.stop()
+            await self._stop_current_controller()
             return
 
         if self.action == "update":
@@ -156,11 +156,25 @@ class _PreparedRemoteControllerChange:
             raise RuntimeError("prepared remote controller is missing")
 
         if self.action == "restart" and self.lifecycle.controller is not None:
-            await self.lifecycle.controller.stop()
+            await self._stop_current_controller()
 
         self.lifecycle.controller = self.new_controller
         self.lifecycle._bot_token = self.settings.telegram.bot_token
         self.new_controller = None
+
+    async def _stop_current_controller(self) -> None:
+        """현재 controller를 멈추거나 `/reload` 응답 이후로 지연합니다."""
+        controller = self.lifecycle.controller
+        if controller is None:
+            return
+
+        if defer_reload_cleanup(controller.stop):
+            controller.update_remote_control(TelegramRemoteControlConfig(enabled=False))
+            self.lifecycle.controller = None
+            self.lifecycle._bot_token = None
+            return
+
+        await self.lifecycle.stop()
 
     async def rollback(self) -> None:
         """준비 중 시작한 새 controller가 있으면 정리합니다."""

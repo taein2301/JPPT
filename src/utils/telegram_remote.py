@@ -95,11 +95,16 @@ class TelegramRemoteController:
 
         application = self.application
         try:
-            if application.updater is not None:
-                await application.updater.stop()
-            if application.running:
-                await application.stop()
-            await application.shutdown()
+            try:
+                updater = application.updater
+                if updater is not None and getattr(updater, "running", False):
+                    await updater.stop()
+            finally:
+                try:
+                    if application.running:
+                        await application.stop()
+                finally:
+                    await application.shutdown()
         finally:
             self.application = None
             logger.info("Telegram remote controller stopped")

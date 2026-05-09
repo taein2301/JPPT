@@ -39,11 +39,12 @@ def _update(chat_id: int | str) -> SimpleNamespace:
     )
 
 
-def _telegram_application() -> SimpleNamespace:
+def _telegram_application(*, updater_running: bool = True) -> SimpleNamespace:
     """테스트용 python-telegram-bot Application 대역을 생성합니다."""
     updater = SimpleNamespace(
         start_polling=AsyncMock(),
         stop=AsyncMock(),
+        running=updater_running,
     )
     return SimpleNamespace(
         add_handler=Mock(),
@@ -237,6 +238,48 @@ async def test_start_cleans_up_application_when_polling_start_fails() -> None:
     application.initialize.assert_awaited_once_with()
     application.start.assert_awaited_once_with()
     application.updater.start_polling.assert_awaited_once_with()
+    application.stop.assert_awaited_once_with()
+    application.shutdown.assert_awaited_once_with()
+    assert controller.application is None
+
+
+@pytest.mark.asyncio
+async def test_stop_skips_updater_stop_when_updater_is_not_running() -> None:
+    """updater가 멈춘 상태면 updater.stop 없이 application cleanup을 수행해야 한다."""
+    application = _telegram_application(updater_running=False)
+    controller = TelegramRemoteController(
+        bot_token="token",
+        remote_control=_remote_control(),
+        reload_callback=AsyncMock(),
+        status_callback=Mock(return_value="status"),
+    )
+    controller.application = application
+
+    await controller.stop()
+
+    application.updater.stop.assert_not_awaited()
+    application.stop.assert_awaited_once_with()
+    application.shutdown.assert_awaited_once_with()
+    assert controller.application is None
+
+
+@pytest.mark.asyncio
+async def test_stop_cleans_up_application_when_updater_stop_raises() -> None:
+    """updater.stop 실패 시에도 application cleanup을 시도하고 원래 예외를 다시 던진다."""
+    application = _telegram_application()
+    application.updater.stop.side_effect = RuntimeError("updater stop failed")
+    controller = TelegramRemoteController(
+        bot_token="token",
+        remote_control=_remote_control(),
+        reload_callback=AsyncMock(),
+        status_callback=Mock(return_value="status"),
+    )
+    controller.application = application
+
+    with pytest.raises(RuntimeError, match="updater stop failed"):
+        await controller.stop()
+
+    application.updater.stop.assert_awaited_once_with()
     application.stop.assert_awaited_once_with()
     application.shutdown.assert_awaited_once_with()
     assert controller.application is None

@@ -1,5 +1,3 @@
-"""API entrypoint package for JPPT."""
+"""API package placeholder for projects that add an HTTP interface."""
 
-from .app import create_api_app
-
-__all__ = ["create_api_app"]
+__all__: list[str] = []

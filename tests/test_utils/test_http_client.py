@@ -1,5 +1,5 @@
-import pytest
 import httpx
+import pytest
 
 from src.utils.exceptions import HttpClientError
 from src.utils.http_client import HttpClient

@@ -25,7 +25,7 @@ async def test_telegram_send_message() -> None:
             chat_id="12345", text="test message", parse_mode=None
         )
         assert any(
-            "Telegram message sent to {} message={}" == str(call.args[0])
+            str(call.args[0]) == "Telegram message sent to {} message={}"
             and call.args[1] == "12345"
             and call.args[2] == "test message"
             for call in mock_info.call_args_list
@@ -96,8 +96,8 @@ async def test_telegram_send_message_skipped_during_silent_time() -> None:
     assert result is False
     mock_bot.send_message.assert_not_called()
     assert any(
-        "Telegram notification skipped due to silent time: {}-{} ({}) message={}"
-        == str(call.args[0])
+        str(call.args[0])
+        == "Telegram notification skipped due to silent time: {}-{} ({}) message={}"
         and call.args[4] == "test message"
         for call in mock_info.call_args_list
     )

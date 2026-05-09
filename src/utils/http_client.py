@@ -127,7 +127,9 @@ class HttpClient:
             error_message = self._format_http_error(e)
             response_text = e.response.text.strip()
             if response_text:
-                logger.error(f"HTTP POST failed: {url} - {error_message} - response={response_text}")
+                logger.error(
+                    f"HTTP POST failed: {url} - {error_message} - response={response_text}"
+                )
                 raise HttpClientError(
                     f"HTTP POST failed: {error_message} - response={response_text}"
                 ) from e

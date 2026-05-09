@@ -1,4 +1,5 @@
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -6,6 +7,7 @@ import pytest
 import src.utils.app_runner as app_runner
 from src.utils.app_runner import run_app
 from src.utils.config import Settings
+from src.utils.reload import ReloadCoordinator
 
 
 class _ImmediateShutdown:
@@ -48,6 +50,35 @@ def _settings(*, remote_control_enabled: bool = False, bot_token: str = "test-to
             "chat_id": "12345" if remote_control_enabled else "",
             "remote_control": remote_control,
         },
+    )
+
+
+def _write_remote_config(config_dir: Path, *, bot_token: str) -> None:
+    """reload 테스트용 prod.yaml을 작성합니다."""
+    config_dir.mkdir()
+    (config_dir / "prod.yaml").write_text(
+        f"""
+app:
+  name: "jppt"
+  version: "0.1.0"
+  debug: false
+
+logging:
+  level: "DEBUG"
+  format: "{{time}} | {{level}} | {{message}}"
+  json_logs: false
+  rotation: "00:00"
+  retention: "10 days"
+
+telegram:
+  enabled: true
+  bot_token: "{bot_token}"
+  chat_id: "12345"
+  remote_control:
+    enabled: true
+    allowed_chat_ids:
+      - "12345"
+"""
     )
 
 
@@ -195,6 +226,75 @@ async def test_remote_lifecycle_reload_same_bot_token_updates_remote_control() -
     controller.start.assert_awaited_once()
     controller.stop.assert_not_awaited()
     controller.update_remote_control.assert_called_once_with(next_settings.telegram.remote_control)
+
+
+@pytest.mark.asyncio
+async def test_reload_failed_remote_restart_preserves_old_controller_and_logger(
+    tmp_path: Path,
+) -> None:
+    """새 controller start 실패 시 reload는 실패하고 기존 controller/logger를 보존합니다."""
+    config_dir = tmp_path / "config"
+    _write_remote_config(config_dir, bot_token="new-token")
+    old_settings = _settings(remote_control_enabled=True, bot_token="old-token")
+    old_controller = MagicMock()
+    old_controller.start = AsyncMock()
+    old_controller.stop = AsyncMock()
+    failed_controller = MagicMock()
+    failed_controller.start = AsyncMock(side_effect=RuntimeError("new controller failed"))
+    failed_controller.stop = AsyncMock()
+    lifecycle = app_runner._RemoteControllerLifecycle(
+        reload_callback=AsyncMock(),
+        status_callback=lambda: "status",
+    )
+
+    with (
+        patch(
+            "src.utils.app_runner.TelegramRemoteController",
+            side_effect=[old_controller, failed_controller],
+        ),
+        patch("src.utils.app_runner.setup_logger") as mock_setup_logger,
+    ):
+        await lifecycle.apply(old_settings)
+        coordinator = ReloadCoordinator(
+            settings=old_settings,
+            env="prod",
+            config_dir=config_dir,
+            apply_settings=lambda next_settings: app_runner._apply_settings_to_runtime(
+                next_settings,
+                remote_lifecycle=lifecycle,
+                log_level=None,
+                verbose=False,
+            ),
+        )
+
+        result = await coordinator.reload()
+
+    assert result.succeeded is False
+    assert result.settings is old_settings
+    assert coordinator.current_settings is old_settings
+    assert lifecycle.controller is old_controller
+    old_controller.stop.assert_not_awaited()
+    failed_controller.start.assert_awaited_once()
+    mock_setup_logger.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_remote_lifecycle_stop_failure_keeps_controller_handle() -> None:
+    """stop 실패 시 controller handle을 먼저 지우면 이후 복구가 불가능합니다."""
+    controller = MagicMock()
+    controller.start = AsyncMock()
+    controller.stop = AsyncMock(side_effect=RuntimeError("stop failed"))
+    lifecycle = app_runner._RemoteControllerLifecycle(
+        reload_callback=AsyncMock(),
+        status_callback=lambda: "status",
+    )
+
+    with patch("src.utils.app_runner.TelegramRemoteController", return_value=controller):
+        await lifecycle.apply(_settings(remote_control_enabled=True, bot_token="old-token"))
+        with pytest.raises(RuntimeError, match="stop failed"):
+            await lifecycle.apply(_settings(remote_control_enabled=False))
+
+    assert lifecycle.controller is controller
 
 
 @pytest.mark.asyncio

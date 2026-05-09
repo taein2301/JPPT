@@ -70,8 +70,7 @@ class _RemoteControllerLifecycle:
             return
 
         if self._bot_token != bot_token:
-            await self.stop()
-            await self._start_controller(settings)
+            await self._restart_controller(settings)
             return
 
         self.controller.update_remote_control(remote_control)
@@ -82,21 +81,76 @@ class _RemoteControllerLifecycle:
             return
 
         controller = self.controller
+        await controller.stop()
         self.controller = None
         self._bot_token = None
-        await controller.stop()
 
     async def _start_controller(self, settings: Settings) -> None:
         """현재 설정으로 새 remote controller를 시작합니다."""
-        controller = TelegramRemoteController(
+        controller = self._build_controller(settings)
+        await controller.start()
+        self.controller = controller
+        self._bot_token = settings.telegram.bot_token
+
+    async def _restart_controller(self, settings: Settings) -> None:
+        """기존 controller를 보존하면서 새 controller로 교체합니다."""
+        old_controller = self.controller
+        old_bot_token = self._bot_token
+        new_controller = self._build_controller(settings)
+        await new_controller.start()
+
+        if old_controller is None:
+            self.controller = new_controller
+            self._bot_token = settings.telegram.bot_token
+            return
+
+        try:
+            await old_controller.stop()
+        except Exception:
+            try:
+                await new_controller.stop()
+            except Exception as cleanup_error:  # noqa: BLE001 - 원래 stop 실패를 유지합니다.
+                logger.error(f"New remote controller cleanup failed: {cleanup_error}")
+            self.controller = old_controller
+            self._bot_token = old_bot_token
+            raise
+
+        self.controller = new_controller
+        self._bot_token = settings.telegram.bot_token
+
+    def _build_controller(self, settings: Settings) -> TelegramRemoteController:
+        """현재 설정으로 remote controller 객체를 생성합니다."""
+        return TelegramRemoteController(
             bot_token=settings.telegram.bot_token,
             remote_control=settings.telegram.remote_control,
             reload_callback=self.reload_callback,
             status_callback=self.status_callback,
         )
-        await controller.start()
-        self.controller = controller
-        self._bot_token = settings.telegram.bot_token
+
+
+async def _apply_settings_to_runtime(
+    next_settings: Settings,
+    *,
+    remote_lifecycle: _RemoteControllerLifecycle,
+    log_level: str | None,
+    verbose: bool,
+) -> TelegramNotifier:
+    """reload된 설정을 remote controller와 logger/notifier에 적용합니다."""
+    await remote_lifecycle.apply(next_settings)
+    effective_log_level = _resolve_log_level(
+        next_settings.logging.level,
+        log_level,
+        verbose,
+    )
+    setup_logger(
+        level=effective_log_level,
+        log_file=_build_log_file(next_settings.app.name),
+        format_str=next_settings.logging.format,
+        json_logs=next_settings.logging.json_logs,
+        rotation=next_settings.logging.rotation,
+        retention=next_settings.logging.retention,
+    )
+    return _build_notifier(next_settings)
 
 
 async def run_app(
@@ -142,22 +196,14 @@ async def run_app(
         """reload된 설정을 현재 런타임 리소스에 적용합니다."""
         nonlocal current_settings, notifier
 
-        effective_log_level = _resolve_log_level(
-            next_settings.logging.level,
-            log_level,
-            verbose,
+        next_notifier = await _apply_settings_to_runtime(
+            next_settings,
+            remote_lifecycle=remote_lifecycle,
+            log_level=log_level,
+            verbose=verbose,
         )
-        setup_logger(
-            level=effective_log_level,
-            log_file=_build_log_file(next_settings.app.name),
-            format_str=next_settings.logging.format,
-            json_logs=next_settings.logging.json_logs,
-            rotation=next_settings.logging.rotation,
-            retention=next_settings.logging.retention,
-        )
-        await remote_lifecycle.apply(next_settings)
         current_settings = next_settings
-        notifier = _build_notifier(current_settings)
+        notifier = next_notifier
 
     coordinator = ReloadCoordinator(
         settings=current_settings,

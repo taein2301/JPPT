@@ -238,6 +238,35 @@ Telegram can be configured in two ways:
    export TELEGRAM__BOT_TOKEN="your-token"
    export TELEGRAM__CHAT_ID="your-chat-id"
    ```
+
+### Telegram Remote Control
+
+`start` mode can optionally accept Telegram commands from allowlisted chat IDs.
+Remote control is disabled by default.
+
+```yaml
+telegram:
+  enabled: true
+  bot_token: "YOUR_BOT_TOKEN"
+  chat_id: "YOUR_CHAT_ID"
+  remote_control:
+    enabled: true
+    allowed_chat_ids:
+      - "YOUR_CHAT_ID"
+    commands:
+      reload: true
+      status: true
+      help: true
+```
+
+Available commands:
+
+- `/reload`: reload `config/{env}.yaml`; keep the previous settings if validation fails.
+- `/status`: show app name, env, uptime, remote control state, and last reload state.
+- `/help`: show enabled commands.
+
+Unauthorized chat IDs are ignored and cannot execute commands.
+
 ### Environment-Specific Config
 
 ```bash

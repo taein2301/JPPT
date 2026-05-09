@@ -158,6 +158,35 @@ telegram:
    export TELEGRAM__BOT_TOKEN="your-token"
    export TELEGRAM__CHAT_ID="your-chat-id"
    ```
+
+### Telegram 원격제어
+
+`start` 모드는 허용된 Telegram chat id에서 온 명령만 선택적으로 처리할 수 있습니다.
+원격제어 기본값은 비활성화입니다.
+
+```yaml
+telegram:
+  enabled: true
+  bot_token: "YOUR_BOT_TOKEN"
+  chat_id: "YOUR_CHAT_ID"
+  remote_control:
+    enabled: true
+    allowed_chat_ids:
+      - "YOUR_CHAT_ID"
+    commands:
+      reload: true
+      status: true
+      help: true
+```
+
+명령:
+
+- `/reload`: `config/{env}.yaml`을 다시 읽습니다. 검증 실패 시 기존 설정을 유지합니다.
+- `/status`: 앱 이름, env, uptime, 원격제어 상태, 마지막 reload 상태를 보여줍니다.
+- `/help`: 활성화된 명령만 보여줍니다.
+
+허용되지 않은 chat id의 명령은 실행하지 않습니다.
+
 ### 환경별 설정
 
 ```bash

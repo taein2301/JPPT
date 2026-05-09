@@ -260,6 +260,7 @@ async def test_reload_failed_remote_restart_preserves_old_controller_and_logger(
             env="prod",
             config_dir=config_dir,
             apply_settings=lambda next_settings: app_runner._apply_settings_to_runtime(
+                old_settings,
                 next_settings,
                 remote_lifecycle=lifecycle,
                 log_level=None,
@@ -276,6 +277,60 @@ async def test_reload_failed_remote_restart_preserves_old_controller_and_logger(
     old_controller.stop.assert_not_awaited()
     failed_controller.start.assert_awaited_once()
     mock_setup_logger.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_reload_failed_logger_setup_rolls_back_prepared_controller(
+    tmp_path: Path,
+) -> None:
+    """logger 실제 적용 실패 시 준비된 새 controller를 중지하고 기존 controller를 유지합니다."""
+    config_dir = tmp_path / "config"
+    _write_remote_config(config_dir, bot_token="new-token")
+    old_settings = _settings(remote_control_enabled=True, bot_token="old-token")
+    old_controller = MagicMock()
+    old_controller.start = AsyncMock()
+    old_controller.stop = AsyncMock()
+    new_controller = MagicMock()
+    new_controller.start = AsyncMock()
+    new_controller.stop = AsyncMock()
+    lifecycle = app_runner._RemoteControllerLifecycle(
+        reload_callback=AsyncMock(),
+        status_callback=lambda: "status",
+    )
+
+    with (
+        patch(
+            "src.utils.app_runner.TelegramRemoteController",
+            side_effect=[old_controller, new_controller],
+        ) as controller_class,
+        patch("src.utils.app_runner.setup_logger", side_effect=RuntimeError("setup failed"))
+        as mock_setup_logger,
+    ):
+        await lifecycle.apply(old_settings)
+        coordinator = ReloadCoordinator(
+            settings=old_settings,
+            env="prod",
+            config_dir=config_dir,
+            apply_settings=lambda next_settings: app_runner._apply_settings_to_runtime(
+                old_settings,
+                next_settings,
+                remote_lifecycle=lifecycle,
+                log_level=None,
+                verbose=False,
+            ),
+        )
+
+        result = await coordinator.reload()
+
+    assert result.succeeded is False
+    assert result.settings is old_settings
+    assert coordinator.current_settings is old_settings
+    assert lifecycle.controller is old_controller
+    old_controller.stop.assert_not_awaited()
+    new_controller.start.assert_awaited_once()
+    new_controller.stop.assert_awaited_once()
+    assert controller_class.call_count == 2
+    mock_setup_logger.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -309,6 +364,7 @@ async def test_reload_failed_logger_validation_preserves_old_controller(
             env="prod",
             config_dir=config_dir,
             apply_settings=lambda next_settings: app_runner._apply_settings_to_runtime(
+                old_settings,
                 next_settings,
                 remote_lifecycle=lifecycle,
                 log_level=None,

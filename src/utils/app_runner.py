@@ -6,6 +6,7 @@
 import asyncio
 from collections.abc import Awaitable, Callable
 from pathlib import Path
+from typing import Literal
 
 from loguru import logger
 
@@ -15,6 +16,8 @@ from src.utils.reload import ReloadCoordinator, ReloadResult
 from src.utils.signals import GracefulShutdown, setup_signal_handlers
 from src.utils.telegram import TelegramNotifier
 from src.utils.telegram_remote import TelegramRemoteController
+
+_RemoteChangeAction = Literal["stop", "start", "restart", "update"]
 
 
 def _build_log_file(app_name: str) -> Path:
@@ -59,21 +62,45 @@ class _RemoteControllerLifecycle:
 
     async def apply(self, settings: Settings) -> None:
         """설정에 맞게 remote controller 상태를 반영합니다."""
+        change = await self.prepare(settings)
+        await change.commit()
+
+    async def prepare(self, settings: Settings) -> "_PreparedRemoteControllerChange":
+        """controller 교체 작업을 준비하되 기존 controller는 아직 유지합니다."""
         remote_control = settings.telegram.remote_control
         if not remote_control.enabled:
-            await self.stop()
-            return
+            return _PreparedRemoteControllerChange(
+                lifecycle=self,
+                settings=settings,
+                action="stop",
+            )
 
         bot_token = settings.telegram.bot_token
         if self.controller is None:
-            await self._start_controller(settings)
-            return
+            new_controller = self._build_controller(settings)
+            await new_controller.start()
+            return _PreparedRemoteControllerChange(
+                lifecycle=self,
+                settings=settings,
+                action="start",
+                new_controller=new_controller,
+            )
 
         if self._bot_token != bot_token:
-            await self._restart_controller(settings)
-            return
+            new_controller = self._build_controller(settings)
+            await new_controller.start()
+            return _PreparedRemoteControllerChange(
+                lifecycle=self,
+                settings=settings,
+                action="restart",
+                new_controller=new_controller,
+            )
 
-        self.controller.update_remote_control(remote_control)
+        return _PreparedRemoteControllerChange(
+            lifecycle=self,
+            settings=settings,
+            action="update",
+        )
 
     async def stop(self) -> None:
         """실행 중인 remote controller를 중지하고 상태를 비웁니다."""
@@ -85,39 +112,6 @@ class _RemoteControllerLifecycle:
         self.controller = None
         self._bot_token = None
 
-    async def _start_controller(self, settings: Settings) -> None:
-        """현재 설정으로 새 remote controller를 시작합니다."""
-        controller = self._build_controller(settings)
-        await controller.start()
-        self.controller = controller
-        self._bot_token = settings.telegram.bot_token
-
-    async def _restart_controller(self, settings: Settings) -> None:
-        """기존 controller를 보존하면서 새 controller로 교체합니다."""
-        old_controller = self.controller
-        old_bot_token = self._bot_token
-        new_controller = self._build_controller(settings)
-        await new_controller.start()
-
-        if old_controller is None:
-            self.controller = new_controller
-            self._bot_token = settings.telegram.bot_token
-            return
-
-        try:
-            await old_controller.stop()
-        except Exception:
-            try:
-                await new_controller.stop()
-            except Exception as cleanup_error:  # noqa: BLE001 - 원래 stop 실패를 유지합니다.
-                logger.error(f"New remote controller cleanup failed: {cleanup_error}")
-            self.controller = old_controller
-            self._bot_token = old_bot_token
-            raise
-
-        self.controller = new_controller
-        self._bot_token = settings.telegram.bot_token
-
     def _build_controller(self, settings: Settings) -> TelegramRemoteController:
         """현재 설정으로 remote controller 객체를 생성합니다."""
         return TelegramRemoteController(
@@ -128,7 +122,61 @@ class _RemoteControllerLifecycle:
         )
 
 
+class _PreparedRemoteControllerChange:
+    """준비된 remote controller 변경을 commit/rollback합니다."""
+
+    def __init__(
+        self,
+        *,
+        lifecycle: _RemoteControllerLifecycle,
+        settings: Settings,
+        action: _RemoteChangeAction,
+        new_controller: TelegramRemoteController | None = None,
+    ) -> None:
+        """준비된 변경 객체를 초기화합니다."""
+        self.lifecycle = lifecycle
+        self.settings = settings
+        self.action = action
+        self.new_controller = new_controller
+
+    async def commit(self) -> None:
+        """준비된 변경을 현재 lifecycle에 확정합니다."""
+        if self.action == "stop":
+            await self.lifecycle.stop()
+            return
+
+        if self.action == "update":
+            if self.lifecycle.controller is not None:
+                self.lifecycle.controller.update_remote_control(
+                    self.settings.telegram.remote_control
+                )
+            return
+
+        if self.new_controller is None:
+            raise RuntimeError("prepared remote controller is missing")
+
+        if self.action == "restart" and self.lifecycle.controller is not None:
+            await self.lifecycle.controller.stop()
+
+        self.lifecycle.controller = self.new_controller
+        self.lifecycle._bot_token = self.settings.telegram.bot_token
+        self.new_controller = None
+
+    async def rollback(self) -> None:
+        """준비 중 시작한 새 controller가 있으면 정리합니다."""
+        if self.new_controller is None:
+            return
+
+        try:
+            await self.new_controller.stop()
+        except Exception as cleanup_error:  # noqa: BLE001 - 원래 실패를 유지합니다.
+            logger.error(f"Prepared remote controller cleanup failed: {cleanup_error}")
+        finally:
+            self.new_controller = None
+
+
 async def _apply_settings_to_runtime(
+    current_settings: Settings,
     next_settings: Settings,
     *,
     remote_lifecycle: _RemoteControllerLifecycle,
@@ -150,16 +198,42 @@ async def _apply_settings_to_runtime(
         rotation=next_settings.logging.rotation,
         retention=next_settings.logging.retention,
     )
-    await remote_lifecycle.apply(next_settings)
-    setup_logger(
-        level=effective_log_level,
-        log_file=log_file,
-        format_str=next_settings.logging.format,
-        json_logs=next_settings.logging.json_logs,
-        rotation=next_settings.logging.rotation,
-        retention=next_settings.logging.retention,
-    )
-    return _build_notifier(next_settings)
+    change = await remote_lifecycle.prepare(next_settings)
+    logger_applied = False
+    try:
+        setup_logger(
+            level=effective_log_level,
+            log_file=log_file,
+            format_str=next_settings.logging.format,
+            json_logs=next_settings.logging.json_logs,
+            rotation=next_settings.logging.rotation,
+            retention=next_settings.logging.retention,
+        )
+        logger_applied = True
+        next_notifier = _build_notifier(next_settings)
+        await change.commit()
+    except Exception:
+        await change.rollback()
+        if logger_applied:
+            current_log_level = _resolve_log_level(
+                current_settings.logging.level,
+                log_level,
+                verbose,
+            )
+            try:
+                setup_logger(
+                    level=current_log_level,
+                    log_file=_build_log_file(current_settings.app.name),
+                    format_str=current_settings.logging.format,
+                    json_logs=current_settings.logging.json_logs,
+                    rotation=current_settings.logging.rotation,
+                    retention=current_settings.logging.retention,
+                )
+            except Exception as restore_error:  # noqa: BLE001 - 원래 실패를 유지합니다.
+                logger.error(f"Logger restore after failed reload failed: {restore_error}")
+        raise
+
+    return next_notifier
 
 
 async def run_app(
@@ -206,6 +280,7 @@ async def run_app(
         nonlocal current_settings, notifier
 
         next_notifier = await _apply_settings_to_runtime(
+            current_settings,
             next_settings,
             remote_lifecycle=remote_lifecycle,
             log_level=log_level,

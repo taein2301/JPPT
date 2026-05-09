@@ -19,6 +19,13 @@ telegram:
     start: "23:00"
     end: "08:00"
     timezone: "Asia/Seoul"
+  remote_control:
+    enabled: false
+    allowed_chat_ids: []
+    commands:
+      reload: true
+      status: true
+      help: true
   templates:
     error_alert: |
       🚨 Error Alert

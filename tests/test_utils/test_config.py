@@ -161,3 +161,112 @@ telegram:
 
     with pytest.raises(ValueError, match="Timezone must be a valid IANA timezone"):
         load_config(env="dev", config_dir=tmp_path)
+
+
+def test_remote_control_defaults_disabled() -> None:
+    """Telegram remote control 기본값은 비활성화여야 한다."""
+    settings = Settings()
+
+    assert settings.telegram.remote_control.enabled is False
+    assert settings.telegram.remote_control.allowed_chat_ids == []
+    assert settings.telegram.remote_control.commands.reload is True
+    assert settings.telegram.remote_control.commands.status is True
+    assert settings.telegram.remote_control.commands.help is True
+
+
+def test_load_config_with_remote_control_normalizes_chat_ids(tmp_path: Path) -> None:
+    """허용 chat id는 문자열 리스트로 정규화되어야 한다."""
+    (tmp_path / "dev.yaml").write_text(
+        """
+telegram:
+  enabled: true
+  bot_token: "token"
+  chat_id: "12345"
+  remote_control:
+    enabled: true
+    allowed_chat_ids:
+      - 12345
+      - "-100999"
+    commands:
+      reload: true
+      status: false
+      help: true
+""",
+        encoding="utf-8",
+    )
+
+    config = load_config(env="dev", config_dir=tmp_path)
+
+    assert config.telegram.remote_control.enabled is True
+    assert config.telegram.remote_control.allowed_chat_ids == ["12345", "-100999"]
+    assert config.telegram.remote_control.commands.reload is True
+    assert config.telegram.remote_control.commands.status is False
+    assert config.telegram.remote_control.commands.help is True
+
+
+def test_remote_control_requires_allowed_chat_ids(tmp_path: Path) -> None:
+    """원격제어가 켜져 있으면 allowed_chat_ids가 비어 있으면 안 된다."""
+    (tmp_path / "dev.yaml").write_text(
+        """
+telegram:
+  enabled: true
+  bot_token: "token"
+  chat_id: "12345"
+  remote_control:
+    enabled: true
+    allowed_chat_ids: []
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="remote_control.allowed_chat_ids must not be empty when enabled",
+    ):
+        load_config(env="dev", config_dir=tmp_path)
+
+
+def test_remote_control_requires_telegram_enabled(tmp_path: Path) -> None:
+    """원격제어가 켜져 있으면 telegram.enabled도 켜져 있어야 한다."""
+    (tmp_path / "dev.yaml").write_text(
+        """
+telegram:
+  enabled: false
+  bot_token: "token"
+  chat_id: "12345"
+  remote_control:
+    enabled: true
+    allowed_chat_ids:
+      - "12345"
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="telegram.enabled must be true when remote_control.enabled is true",
+    ):
+        load_config(env="dev", config_dir=tmp_path)
+
+
+def test_remote_control_requires_bot_token(tmp_path: Path) -> None:
+    """원격제어가 켜져 있으면 bot_token이 비어 있으면 안 된다."""
+    (tmp_path / "dev.yaml").write_text(
+        """
+telegram:
+  enabled: true
+  bot_token: ""
+  chat_id: "12345"
+  remote_control:
+    enabled: true
+    allowed_chat_ids:
+      - "12345"
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="telegram.bot_token must not be empty when remote_control.enabled is true",
+    ):
+        load_config(env="dev", config_dir=tmp_path)

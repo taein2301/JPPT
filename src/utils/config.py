@@ -4,9 +4,10 @@
 환경별 설정(dev.yaml, prod.yaml)을 직접 로드하여 사용합니다.
 """
 
+from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
@@ -47,6 +48,53 @@ class LoggingConfig(BaseModel):
     json_logs: bool = Field(default=False)
 
 
+class TelegramRemoteCommandsConfig(BaseModel):
+    """Telegram 원격제어 명령 활성화 설정.
+
+    Attributes:
+        reload: 설정 reload 명령 활성화 여부
+        status: 상태 조회 명령 활성화 여부
+        help: 도움말 명령 활성화 여부
+    """
+
+    reload: bool = Field(default=True)
+    status: bool = Field(default=True)
+    help: bool = Field(default=True)
+
+
+class TelegramRemoteControlConfig(BaseModel):
+    """Telegram 원격제어 설정.
+
+    Attributes:
+        enabled: 원격제어 활성화 여부
+        allowed_chat_ids: 명령 실행을 허용할 Telegram chat id 목록
+        commands: 명령별 활성화 설정
+    """
+
+    enabled: bool = Field(default=False)
+    allowed_chat_ids: list[str] = Field(default_factory=list)
+    commands: TelegramRemoteCommandsConfig = Field(default_factory=TelegramRemoteCommandsConfig)
+
+    @field_validator("allowed_chat_ids", mode="before")
+    @classmethod
+    def normalize_allowed_chat_ids(cls, value: object) -> list[str]:
+        """Telegram chat id를 문자열 리스트로 정규화합니다."""
+        if value is None:
+            return []
+        if isinstance(value, (str, int)):
+            return [str(value)]
+        if isinstance(value, list):
+            return [str(item) for item in value]
+        raise ValueError("allowed_chat_ids must be a list of chat ids")
+
+    @model_validator(mode="after")
+    def validate_enabled_config(self) -> "TelegramRemoteControlConfig":
+        """원격제어 활성화 시 허용 chat id를 필수로 요구합니다."""
+        if self.enabled and not self.allowed_chat_ids:
+            raise ValueError("remote_control.allowed_chat_ids must not be empty when enabled")
+        return self
+
+
 class TelegramConfig(BaseModel):
     """텔레그램 연동 설정.
 
@@ -54,6 +102,7 @@ class TelegramConfig(BaseModel):
         enabled: 텔레그램 알림 활성화 여부
         bot_token: 텔레그램 봇 토큰
         chat_id: 텔레그램 채팅방 ID
+        remote_control: 텔레그램 원격제어 설정
     """
 
     enabled: bool = Field(default=False)
@@ -65,6 +114,20 @@ class TelegramConfig(BaseModel):
     templates: "TelegramMessageTemplateConfig" = Field(
         default_factory=lambda: TelegramMessageTemplateConfig()
     )
+    remote_control: TelegramRemoteControlConfig = Field(default_factory=TelegramRemoteControlConfig)
+
+    @model_validator(mode="after")
+    def validate_remote_control(self) -> "TelegramConfig":
+        """원격제어 활성화 시 Telegram 송신 설정도 유효해야 합니다."""
+        if not self.remote_control.enabled:
+            return self
+        if not self.enabled:
+            raise ValueError("telegram.enabled must be true when remote_control.enabled is true")
+        if not self.bot_token:
+            raise ValueError(
+                "telegram.bot_token must not be empty when remote_control.enabled is true"
+            )
+        return self
 
 
 class TelegramMessageTemplateConfig(BaseModel):
@@ -75,12 +138,7 @@ class TelegramMessageTemplateConfig(BaseModel):
     """
 
     error_alert: str = Field(
-        default=(
-            "🚨 Error Alert\n\n"
-            "{context_section}"
-            "Error: {error_type}\n"
-            "Message: {error_message}"
-        )
+        default=("🚨 Error Alert\n\n{context_section}Error: {error_type}\nMessage: {error_message}")
     )
 
 

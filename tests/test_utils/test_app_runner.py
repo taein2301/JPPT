@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import src.utils.app_runner as app_runner
 from src.utils.app_runner import run_app
 from src.utils.config import Settings
 
@@ -24,7 +25,15 @@ class _ImmediateShutdown:
         return None
 
 
-def _settings(*, remote_control_enabled: bool = False) -> Settings:
+class _RunningShutdown(_ImmediateShutdown):
+    """테스트용 실행 중 shutdown."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.should_exit = False
+
+
+def _settings(*, remote_control_enabled: bool = False, bot_token: str = "test-token") -> Settings:
     """app_runner 테스트용 설정을 생성합니다."""
     remote_control = {"enabled": False}
     if remote_control_enabled:
@@ -35,7 +44,7 @@ def _settings(*, remote_control_enabled: bool = False) -> Settings:
         logging={"level": "INFO", "json_logs": False},
         telegram={
             "enabled": remote_control_enabled,
-            "bot_token": "test-token" if remote_control_enabled else "",
+            "bot_token": bot_token if remote_control_enabled else "",
             "chat_id": "12345" if remote_control_enabled else "",
             "remote_control": remote_control,
         },
@@ -92,7 +101,8 @@ async def test_run_app_starts_remote_controller_and_registers_cleanup() -> None:
     assert callable(call_kwargs["reload_callback"])
     assert callable(call_kwargs["status_callback"])
     controller.start.assert_awaited_once()
-    assert shutdown.cleanup_callbacks == [controller.stop]
+    assert len(shutdown.cleanup_callbacks) == 1
+    controller.stop.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -114,3 +124,101 @@ async def test_run_app_does_not_create_remote_controller_when_disabled() -> None
 
     controller_class.assert_not_called()
     assert shutdown.cleanup_callbacks == []
+
+
+@pytest.mark.asyncio
+async def test_remote_lifecycle_reload_enabled_to_disabled_stops_and_clears_controller() -> None:
+    """reload로 remote_control이 꺼지면 기존 controller를 중지하고 비워야 합니다."""
+    controller = MagicMock()
+    controller.start = AsyncMock()
+    controller.stop = AsyncMock()
+    lifecycle = app_runner._RemoteControllerLifecycle(
+        reload_callback=AsyncMock(),
+        status_callback=lambda: "status",
+    )
+
+    with patch("src.utils.app_runner.TelegramRemoteController", return_value=controller):
+        await lifecycle.apply(_settings(remote_control_enabled=True, bot_token="old-token"))
+        assert lifecycle.controller is controller
+
+        await lifecycle.apply(_settings(remote_control_enabled=False))
+
+    controller.stop.assert_awaited_once()
+    assert lifecycle.controller is None
+
+
+@pytest.mark.asyncio
+async def test_remote_lifecycle_reload_changed_bot_token_restarts_controller() -> None:
+    """reload로 bot_token이 바뀌면 기존 controller를 멈추고 새 controller를 시작합니다."""
+    old_controller = MagicMock()
+    old_controller.start = AsyncMock()
+    old_controller.stop = AsyncMock()
+    new_controller = MagicMock()
+    new_controller.start = AsyncMock()
+    new_controller.stop = AsyncMock()
+    lifecycle = app_runner._RemoteControllerLifecycle(
+        reload_callback=AsyncMock(),
+        status_callback=lambda: "status",
+    )
+
+    with patch(
+        "src.utils.app_runner.TelegramRemoteController",
+        side_effect=[old_controller, new_controller],
+    ) as controller_class:
+        await lifecycle.apply(_settings(remote_control_enabled=True, bot_token="old-token"))
+        await lifecycle.apply(_settings(remote_control_enabled=True, bot_token="new-token"))
+
+    assert controller_class.call_args_list[0].kwargs["bot_token"] == "old-token"
+    assert controller_class.call_args_list[1].kwargs["bot_token"] == "new-token"
+    old_controller.stop.assert_awaited_once()
+    new_controller.start.assert_awaited_once()
+    assert lifecycle.controller is new_controller
+
+
+@pytest.mark.asyncio
+async def test_remote_lifecycle_reload_same_bot_token_updates_remote_control() -> None:
+    """reload 후 bot_token이 같으면 controller를 재시작하지 않고 설정만 갱신합니다."""
+    controller = MagicMock()
+    controller.start = AsyncMock()
+    controller.stop = AsyncMock()
+    lifecycle = app_runner._RemoteControllerLifecycle(
+        reload_callback=AsyncMock(),
+        status_callback=lambda: "status",
+    )
+    first_settings = _settings(remote_control_enabled=True, bot_token="same-token")
+    next_settings = _settings(remote_control_enabled=True, bot_token="same-token")
+
+    with patch("src.utils.app_runner.TelegramRemoteController", return_value=controller):
+        await lifecycle.apply(first_settings)
+        await lifecycle.apply(next_settings)
+
+    controller.start.assert_awaited_once()
+    controller.stop.assert_not_awaited()
+    controller.update_remote_control.assert_called_once_with(next_settings.telegram.remote_control)
+
+
+@pytest.mark.asyncio
+async def test_run_app_exception_stops_remote_controller() -> None:
+    """앱 루프 예외 종료에서도 remote controller를 중지해야 합니다."""
+    settings = _settings(remote_control_enabled=True)
+    shutdown = _RunningShutdown()
+    controller = MagicMock()
+    controller.start = AsyncMock()
+    controller.stop = AsyncMock()
+
+    async def raise_runtime_error(seconds: int) -> None:
+        del seconds
+        raise RuntimeError("loop failed")
+
+    with (
+        patch("src.utils.app_runner.GracefulShutdown", return_value=shutdown),
+        patch("src.utils.app_runner.setup_signal_handlers"),
+        patch("src.utils.app_runner.asyncio.sleep", side_effect=raise_runtime_error),
+        patch("src.utils.app_runner.TelegramNotifier.send_message", new_callable=AsyncMock),
+        patch("src.utils.app_runner.TelegramNotifier.send_error", new_callable=AsyncMock),
+        patch("src.utils.app_runner.TelegramRemoteController", return_value=controller),
+        pytest.raises(RuntimeError, match="loop failed"),
+    ):
+        await run_app(settings, "prod")
+
+    controller.stop.assert_awaited_once()

@@ -4,13 +4,14 @@
 """
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from loguru import logger
 
 from src.utils.config import Settings
 from src.utils.logger import setup_logger
-from src.utils.reload import ReloadCoordinator
+from src.utils.reload import ReloadCoordinator, ReloadResult
 from src.utils.signals import GracefulShutdown, setup_signal_handlers
 from src.utils.telegram import TelegramNotifier
 from src.utils.telegram_remote import TelegramRemoteController
@@ -39,6 +40,63 @@ def _build_notifier(settings: Settings) -> TelegramNotifier:
         silent_time=settings.telegram.silent_time,
         templates=settings.telegram.templates,
     )
+
+
+class _RemoteControllerLifecycle:
+    """Telegram remote controller의 시작/갱신/중지를 관리합니다."""
+
+    def __init__(
+        self,
+        *,
+        reload_callback: Callable[[], Awaitable[ReloadResult]],
+        status_callback: Callable[[], str],
+    ) -> None:
+        """lifecycle 관리자를 초기화합니다."""
+        self.reload_callback = reload_callback
+        self.status_callback = status_callback
+        self.controller: TelegramRemoteController | None = None
+        self._bot_token: str | None = None
+
+    async def apply(self, settings: Settings) -> None:
+        """설정에 맞게 remote controller 상태를 반영합니다."""
+        remote_control = settings.telegram.remote_control
+        if not remote_control.enabled:
+            await self.stop()
+            return
+
+        bot_token = settings.telegram.bot_token
+        if self.controller is None:
+            await self._start_controller(settings)
+            return
+
+        if self._bot_token != bot_token:
+            await self.stop()
+            await self._start_controller(settings)
+            return
+
+        self.controller.update_remote_control(remote_control)
+
+    async def stop(self) -> None:
+        """실행 중인 remote controller를 중지하고 상태를 비웁니다."""
+        if self.controller is None:
+            return
+
+        controller = self.controller
+        self.controller = None
+        self._bot_token = None
+        await controller.stop()
+
+    async def _start_controller(self, settings: Settings) -> None:
+        """현재 설정으로 새 remote controller를 시작합니다."""
+        controller = TelegramRemoteController(
+            bot_token=settings.telegram.bot_token,
+            remote_control=settings.telegram.remote_control,
+            reload_callback=self.reload_callback,
+            status_callback=self.status_callback,
+        )
+        await controller.start()
+        self.controller = controller
+        self._bot_token = settings.telegram.bot_token
 
 
 async def run_app(
@@ -78,7 +136,7 @@ async def run_app(
 
     current_settings = settings
     notifier = _build_notifier(current_settings)
-    controller: TelegramRemoteController | None = None
+    remote_lifecycle: _RemoteControllerLifecycle
 
     async def apply_settings(next_settings: Settings) -> None:
         """reload된 설정을 현재 런타임 리소스에 적용합니다."""
@@ -97,16 +155,19 @@ async def run_app(
             rotation=next_settings.logging.rotation,
             retention=next_settings.logging.retention,
         )
+        await remote_lifecycle.apply(next_settings)
         current_settings = next_settings
         notifier = _build_notifier(current_settings)
-        if controller is not None:
-            controller.update_remote_control(current_settings.telegram.remote_control)
 
     coordinator = ReloadCoordinator(
         settings=current_settings,
         env=env,
         config_dir=config_dir,
         apply_settings=apply_settings,
+    )
+    remote_lifecycle = _RemoteControllerLifecycle(
+        reload_callback=coordinator.reload,
+        status_callback=coordinator.status_message,
     )
 
     # 시작 알림 전송
@@ -124,14 +185,8 @@ async def run_app(
 
     try:
         if current_settings.telegram.remote_control.enabled:
-            controller = TelegramRemoteController(
-                bot_token=current_settings.telegram.bot_token,
-                remote_control=current_settings.telegram.remote_control,
-                reload_callback=coordinator.reload,
-                status_callback=coordinator.status_message,
-            )
-            await controller.start()
-            shutdown.register_cleanup(controller.stop)
+            await remote_lifecycle.apply(current_settings)
+            shutdown.register_cleanup(remote_lifecycle.stop)
 
         async with shutdown:
             logger.info("App running (Press Ctrl+C to stop)")
@@ -157,3 +212,8 @@ async def run_app(
         # 에러 알림
         await notifier.send_error(e, context="App mode crashed")
         raise
+    finally:
+        try:
+            await remote_lifecycle.stop()
+        except Exception as e:  # noqa: BLE001 - cleanup 실패는 원래 종료 흐름을 가리지 않습니다.
+            logger.error(f"Remote controller cleanup failed: {e}")

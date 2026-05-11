@@ -6,7 +6,7 @@
 
 - 🎯 **Typer CLI**: 깔끔한 명령줄 인터페이스
 - ⚙️ **Pydantic Settings**: YAML 계층 구조 기반의 타입 안전 설정 관리
-- 📝 **Loguru**: 날짜 기반 로테이션(`_YYYYMMDD.log`) 지원 구조화된 로깅
+- 📝 **Loguru**: 날짜 기반 로테이션(`.log_YYYYMMDD`) 지원 구조화된 로깅
 - 🔄 **Tenacity**: 지수 백오프 기반 재시도 로직
 - 📱 **Telegram**: 인터랙티브 설정을 지원하는 내장 알림 기능
 - 🌐 **httpx**: 타임아웃 및 에러 핸들링 내장 비동기 HTTP 클라이언트
@@ -203,7 +203,7 @@ cp config/dev.yaml.example config/prod.yaml
 로그는 `logs/` 디렉토리에 날짜 기반 자동 로테이션으로 저장됩니다:
 
 - **현재 로그:** `logs/{app_name}.log` (배치 모드: `{app_name}_batch.log`)
-- **로테이션 로그:** `logs/{app_name}_YYYYMMDD.log` (예: `myapp_20260206.log`)
+- **로테이션 로그:** `logs/{app_name}.log_YYYYMMDD` (예: `myapp.log_20260206`)
 - **로테이션:** 매일 자정 (설정 가능)
 - **보관 기간:** 기본 10일 (설정 가능)
 

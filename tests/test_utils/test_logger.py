@@ -61,15 +61,15 @@ def test_setup_logger_with_file(tmp_path: Path) -> None:
 
 
 def test_log_namer_converts_date_format() -> None:
-    """로테이션된 로그 파일명이 _YYYYMMDD.log 형식으로 변환되는지 검증."""
-    result = _log_namer("/logs/app.log.2026-02-06_00-00-00_000000")
-    assert result == str(Path("/logs") / "app_20260206.log")
+    """로테이션된 로그 파일명이 .log_YYYYMMDD 형식으로 변환되는지 검증."""
+    result = _log_namer("/logs/app.2026-02-06_00-00-00_000000.log")
+    assert result == str(Path("/logs") / "app.log_20260206")
 
 
 def test_log_namer_with_batch_log() -> None:
     """배치 모드 로그 파일명도 올바르게 변환되는지 검증."""
-    result = _log_namer("/logs/app_batch.log.2026-01-15_23-59-59_999999")
-    assert result == str(Path("/logs") / "app_batch_20260115.log")
+    result = _log_namer("/logs/app_batch.2026-01-15_23-59-59_999999.log")
+    assert result == str(Path("/logs") / "app_batch.log_20260115")
 
 
 def test_log_namer_no_match_returns_original() -> None:
@@ -88,7 +88,7 @@ def test_parse_retention_days() -> None:
 
 
 def test_retention_handler_renames_rotated_file(tmp_path: Path) -> None:
-    """retention 핸들러가 로테이션된 파일을 _YYYYMMDD.log로 이름변경하는지 검증."""
+    """retention 핸들러가 로테이션된 파일을 .log_YYYYMMDD로 이름변경하는지 검증."""
     from datetime import datetime
 
     log_file = tmp_path / "app.log"
@@ -97,13 +97,13 @@ def test_retention_handler_renames_rotated_file(tmp_path: Path) -> None:
     # Loguru 기본 형식의 백업 파일 생성
     today = datetime.now().strftime("%Y-%m-%d")
     today_compact = datetime.now().strftime("%Y%m%d")
-    rotated = tmp_path / f"app.log.{today}_00-00-00_000000"
+    rotated = tmp_path / f"app.{today}_00-00-00_000000.log"
     rotated.write_text("old log")
 
     handler([str(rotated)])
 
-    # _YYYYMMDD.log 형식으로 이름변경 확인
-    renamed = tmp_path / f"app_{today_compact}.log"
+    # .log_YYYYMMDD 형식으로 이름변경 확인
+    renamed = tmp_path / f"app.log_{today_compact}"
     assert renamed.exists()
     assert renamed.read_text() == "old log"
     assert not rotated.exists()
@@ -115,7 +115,7 @@ def test_retention_handler_deletes_old_files(tmp_path: Path) -> None:
     handler = _make_retention_handler("1 day", log_file)
 
     # 오래된 백업 파일 생성 (30일 전)
-    old_file = tmp_path / "app_20260101.log"
+    old_file = tmp_path / "app.log_20260101"
     old_file.write_text("very old")
     # mtime을 과거로 설정
     os.utime(old_file, (0, 0))
@@ -134,7 +134,7 @@ def test_retention_handler_keeps_recent_files(tmp_path: Path) -> None:
     from datetime import datetime
 
     today = datetime.now().strftime("%Y%m%d")
-    recent_file = tmp_path / f"app_{today}.log"
+    recent_file = tmp_path / f"app.log_{today}"
     recent_file.write_text("recent log")
 
     handler([])

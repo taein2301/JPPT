@@ -73,6 +73,10 @@ setup_logs_dir() {
     fi
 }
 
+resolve_python_executable() {
+    uv run python -c 'import sys; print(sys.executable)'
+}
+
 extract_app_name() {
     local env=$1
     local config_file="config/${env}.yaml"
@@ -189,6 +193,7 @@ main() {
     else
         LOG_FILE="$HOME/logs/${APP_NAME}.log"
     fi
+    PYTHON_BIN=$(resolve_python_executable)
 
     # Print execution info
     echo "${BOLD}Starting ${APP_NAME}...${RESET}"
@@ -196,7 +201,7 @@ main() {
     echo "  ${BLUE}Environment:${RESET} $ENV"
     echo "  ${BLUE}Config:${RESET}      config/${ENV}.yaml"
     echo "  ${BLUE}Logs:${RESET}        $LOG_FILE"
-    echo "  ${BLUE}Command:${RESET}     uv run python -m src.main ${MODE} --env ${ENV}"
+    echo "  ${BLUE}Command:${RESET}     ${PYTHON_BIN} -m src.main ${MODE} --env ${ENV}"
     if [ "$MODE" = "start" ]; then
         echo "  ${YELLOW}Note:${RESET}        start mode runs as daemon (template idle loop)."
         echo "                It keeps running until Ctrl+C."
@@ -210,10 +215,9 @@ main() {
     set +e
     if [ "$MODE" = "start" ]; then
         PROCESS_TAG=$(build_start_process_tag "$APP_NAME" "$ENV")
-        bash -c 'exec -a "$1" uv run python -m src.main "$2" --env "$3"' \
-            bash "$PROCESS_TAG" "$MODE" "$ENV"
+        exec -a "$PROCESS_TAG" "$PYTHON_BIN" -m src.main "$MODE" --env "$ENV"
     else
-        uv run python -m src.main "$MODE" --env "$ENV"
+        "$PYTHON_BIN" -m src.main "$MODE" --env "$ENV"
     fi
     EXIT_CODE=$?
     set -e

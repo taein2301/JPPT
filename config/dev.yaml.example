@@ -26,9 +26,3 @@ telegram:
       reload: true
       status: true
       help: true
-  templates:
-    error_alert: |
-      🚨 Error Alert
-
-      {context_section}Error: {error_type}
-      Message: {error_message}

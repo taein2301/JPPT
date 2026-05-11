@@ -526,7 +526,6 @@ async def test_run_app_exception_stops_remote_controller() -> None:
         patch("src.utils.app_runner.setup_signal_handlers"),
         patch("src.utils.app_runner.asyncio.sleep", side_effect=raise_runtime_error),
         patch("src.utils.app_runner.TelegramNotifier.send_message", new_callable=AsyncMock),
-        patch("src.utils.app_runner.TelegramNotifier.send_error", new_callable=AsyncMock),
         patch("src.utils.app_runner.TelegramRemoteController", return_value=controller),
         pytest.raises(RuntimeError, match="loop failed"),
     ):

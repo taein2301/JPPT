@@ -41,7 +41,6 @@ def _build_notifier(settings: Settings) -> TelegramNotifier:
         chat_id=settings.telegram.chat_id,
         enabled=settings.telegram.enabled,
         silent_time=settings.telegram.silent_time,
-        templates=settings.telegram.templates,
     )
 
 
@@ -353,8 +352,6 @@ async def run_app(
         )
     except Exception as e:
         logger.error(f"App crashed: {e}")
-        # 에러 알림
-        await notifier.send_error(e, context="App mode crashed")
         raise
     finally:
         try:

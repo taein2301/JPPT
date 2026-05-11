@@ -95,7 +95,6 @@ async def run_app(settings: Settings) -> None:
                 await asyncio.sleep(60)
             except Exception as e:
                 logger.error(f"Error: {e}")
-                await telegram.send_error(e)
 
         await telegram.send_message("👋 App stopped")
 ```
@@ -251,7 +250,6 @@ telegram = TelegramNotifier(
 )
 
 await telegram.send_message("✅ Task completed")
-await telegram.send_error(exception, context="Processing batch")
 ```
 
 ### Telegram 원격제어
@@ -410,7 +408,7 @@ git commit -m "feat: add my feature"
 Logs are written to the `$HOME/logs/` directory (user's home directory) with automatic date-based rotation:
 
 - **Active log:** `$HOME/logs/{app_name}.log` (or `{app_name}_batch.log` for batch mode)
-- **Rotated logs:** `$HOME/logs/{app_name}_YYYYMMDD.log` (e.g., `myapp_20260206.log`)
+- **Rotated logs:** `$HOME/logs/{app_name}.log_YYYYMMDD` (e.g., `myapp.log_20260206`)
 - **Rotation:** Daily at midnight (configurable via `logging.rotation`)
 - **Retention:** 10 days by default (configurable via `logging.retention`)
 

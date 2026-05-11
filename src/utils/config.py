@@ -124,9 +124,6 @@ class TelegramConfig(BaseModel):
     silent_time: "TelegramSilentTimeConfig" = Field(
         default_factory=lambda: TelegramSilentTimeConfig()
     )
-    templates: "TelegramMessageTemplateConfig" = Field(
-        default_factory=lambda: TelegramMessageTemplateConfig()
-    )
     remote_control: TelegramRemoteControlConfig = Field(default_factory=TelegramRemoteControlConfig)
 
     @model_validator(mode="after")
@@ -141,18 +138,6 @@ class TelegramConfig(BaseModel):
                 "telegram.bot_token must not be empty when remote_control.enabled is true"
             )
         return self
-
-
-class TelegramMessageTemplateConfig(BaseModel):
-    """텔레그램 메시지 템플릿 설정.
-
-    Attributes:
-        error_alert: 오류 알림 템플릿
-    """
-
-    error_alert: str = Field(
-        default=("🚨 Error Alert\n\n{context_section}Error: {error_type}\nMessage: {error_message}")
-    )
 
 
 class TelegramSilentTimeConfig(BaseModel):

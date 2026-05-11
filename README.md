@@ -6,7 +6,7 @@ Modern Python CLI application template with best practices built-in.
 
 - 🎯 **Typer CLI**: Clean command-line interface
 - ⚙️ **Pydantic Settings**: Type-safe configuration with layered YAML
-- 📝 **Loguru**: Structured logging with date-based rotation (`_YYYYMMDD.log`)
+- 📝 **Loguru**: Structured logging with date-based rotation (`.log_YYYYMMDD`)
 - 🔄 **Tenacity**: Retry logic with exponential backoff
 - 📱 **Telegram**: Built-in notifications with interactive setup
 - 🌐 **httpx**: Async HTTP client with timeout and error handling
@@ -283,7 +283,7 @@ cp config/dev.yaml.example config/prod.yaml
 Logs are written to the `$HOME/logs/` directory (user's home directory) with automatic date-based rotation:
 
 - **Active log:** `$HOME/logs/{app_name}.log` (or `{app_name}_batch.log` for batch mode)
-- **Rotated logs:** `$HOME/logs/{app_name}_YYYYMMDD.log` (e.g., `myapp_20260206.log`)
+- **Rotated logs:** `$HOME/logs/{app_name}.log_YYYYMMDD` (e.g., `myapp.log_20260206`)
 - **Rotation:** Daily at midnight (configurable)
 - **Retention:** 10 days by default (configurable)
 

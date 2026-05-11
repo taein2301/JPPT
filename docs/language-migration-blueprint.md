@@ -157,7 +157,7 @@
 
 - enabled 플래그
 - bot token/chat id 설정 검증
-- 성공/실패 알림 템플릿
+- 단순 메시지 전송
 - 네트워크 실패 시 graceful degrade(로그로 대체)
 
 ## 4.8 신호 처리 / 종료

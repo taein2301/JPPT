@@ -1373,22 +1373,6 @@ class TelegramNotifier:
         except TelegramError as e:
             logger.error(f"Failed to send Telegram message: {e}")
             # Don't raise, just log - notifications shouldn't break the app
-
-    async def send_error(self, error: Exception, context: str = "") -> None:
-        """
-        Send error notification to Telegram.
-
-        Args:
-            error: Exception that occurred
-            context: Additional context about the error
-        """
-        message = f"🚨 **Error Alert**\n\n"
-        if context:
-            message += f"**Context:** {context}\n\n"
-        message += f"**Error:** `{type(error).__name__}`\n"
-        message += f"**Message:** {str(error)}"
-
-        await self.send_message(message)
 ```
 
 **Step 4: Run tests to verify they pass**
@@ -1998,7 +1982,6 @@ def mock_telegram() -> MagicMock:
     """Mock Telegram notifier."""
     mock = MagicMock()
     mock.send_message = AsyncMock()
-    mock.send_error = AsyncMock()
     return mock
 
 
@@ -2213,7 +2196,6 @@ async def run_app(settings: Settings) -> None:
                 await asyncio.sleep(60)
             except Exception as e:
                 logger.error(f"Error: {e}")
-                await telegram.send_error(e)
 
         await telegram.send_message("👋 App stopped")
 \`\`\`
@@ -2360,7 +2342,6 @@ telegram = TelegramNotifier(
 )
 
 await telegram.send_message("✅ Task completed")
-await telegram.send_error(exception, context="Processing batch")
 \`\`\`
 
 ## Testing Strategy

@@ -5,8 +5,10 @@ start(앱 모드)와 batch(배치 모드) 두 가지 실행 모드를 제공합�
 """
 
 import asyncio
+import json
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+from typing import Any
 
 import typer
 from loguru import logger
@@ -24,6 +26,58 @@ app = typer.Typer(
     add_completion=False,
 )
 
+_SENSITIVE_CONFIG_KEYS = frozenset(
+    {
+        "access_key",
+        "access_token",
+        "account_no",
+        "account_number",
+        "account_product_code",
+        "api_key",
+        "api_secret",
+        "app_key",
+        "app_secret",
+        "bot_token",
+        "chat_id",
+        "dsn",
+        "product_code",
+        "secret_key",
+    }
+)
+
+
+def _mask_config_secrets(value: Any, *, key: str | None = None) -> Any:
+    """로그에 남기기 전 config secret 값을 마스킹합니다."""
+    if key in _SENSITIVE_CONFIG_KEYS:
+        return "<redacted>"
+    if isinstance(value, dict):
+        return {
+            item_key: _mask_config_secrets(item_value, key=item_key)
+            for item_key, item_value in value.items()
+        }
+    if isinstance(value, list):
+        return [_mask_config_secrets(item) for item in value]
+    return value
+
+
+def _build_config_log_summary(
+    *,
+    mode: str,
+    env: str,
+    settings: Settings,
+    effective_log_level: str,
+    log_file: Path,
+) -> dict[str, Any]:
+    """실행 시작 로그에 남길 config 요약을 생성합니다."""
+    config_values = _mask_config_secrets(settings.model_dump(mode="json"))
+    return {
+        "mode": mode,
+        "env": env,
+        "effective_log_level": effective_log_level,
+        "log_file": str(log_file),
+        **config_values,
+    }
+
 
 def _log_loaded_config(
     *,
@@ -34,26 +88,16 @@ def _log_loaded_config(
     log_file: Path,
 ) -> None:
     """실행 시작 시 핵심 설정 요약을 로깅합니다."""
+    summary = _build_config_log_summary(
+        mode=mode,
+        env=env,
+        settings=settings,
+        effective_log_level=effective_log_level,
+        log_file=log_file,
+    )
     logger.info(
-        "Loaded config summary:\n"
-        "  mode: {}\n"
-        "  env: {}\n"
-        "  app: {}\n"
-        "  version: {}\n"
-        "  debug: {}\n"
-        "  log_level: {}\n"
-        "  log_json: {}\n"
-        "  log_file: {}\n"
-        "  telegram_enabled: {}",
-        mode,
-        env,
-        settings.app.name,
-        settings.app.version,
-        settings.app.debug,
-        effective_log_level,
-        settings.logging.json_logs,
-        log_file,
-        settings.telegram.enabled,
+        "Loaded config summary:\n{}",
+        json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True),
     )
 
 

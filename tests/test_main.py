@@ -98,6 +98,39 @@ def test_start_command_basic(
     coroutine.close()
 
 
+def test_loaded_config_summary_includes_runtime_values_and_masks_secrets() -> None:
+    from src.main import _build_config_log_summary
+    from src.utils.config import Settings
+
+    settings = Settings(
+        app={"name": "test-app", "version": "0.1.0", "debug": True},
+        logging={"level": "DEBUG", "json_logs": False},
+        telegram={
+            "enabled": True,
+            "bot_token": "telegram-token",
+            "chat_id": "123456",
+        },
+    )
+
+    summary = _build_config_log_summary(
+        mode="start",
+        env="prod",
+        settings=settings,
+        effective_log_level="INFO",
+        log_file=Path("/tmp/test-app.log"),
+    )
+
+    assert summary["mode"] == "start"
+    assert summary["env"] == "prod"
+    assert summary["app"]["name"] == "test-app"
+    assert summary["logging"]["level"] == "DEBUG"
+    assert summary["effective_log_level"] == "INFO"
+    assert summary["log_file"] == "/tmp/test-app.log"
+    assert summary["telegram"]["enabled"] is True
+    assert summary["telegram"]["bot_token"] == "<redacted>"
+    assert summary["telegram"]["chat_id"] == "<redacted>"
+
+
 @patch("src.main.asyncio.run")
 @patch("src.main.setup_logger")
 @patch("src.main.load_config")

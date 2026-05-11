@@ -5,7 +5,7 @@ app:
 
 logging:
   level: "INFO"
-  format: "[{time:YYYY-MM-DD HH:mm:ss}][{level}]{message} [{file.name}:{line}]"
+  format: "[{time:HH:mm:ss}]{message}"
   json_logs: false
   rotation: "00:00"
   retention: "10 days"
@@ -26,9 +26,3 @@ telegram:
       reload: true
       status: true
       help: true
-  templates:
-    error_alert: |
-      🚨 Error Alert
-
-      {context_section}Error: {error_type}
-      Message: {error_message}

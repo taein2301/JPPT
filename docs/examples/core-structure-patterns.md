@@ -351,7 +351,6 @@ async def run_batch(settings: Settings) -> None:
 
     except Exception as e:
         logger.error(f"처리 실패: {e}")
-        await notifier.send_error(e, context="Batch mode failed")
         raise
 ```
 

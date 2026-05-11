@@ -1,7 +1,7 @@
 """Loguru를 사용한 로깅 설정.
 
 이 모듈은 콘솔 및 파일 로깅을 설정하고, 로그 로테이션 및 보관 정책을 관리합니다.
-로테이션 시 백업 파일은 _YYYYMMDD.log 형식으로 저장됩니다.
+로테이션 시 백업 파일은 .log_YYYYMMDD 형식으로 저장됩니다.
 """
 
 import os
@@ -58,20 +58,27 @@ def _resolve_log_file_path(log_file: Path) -> Path:
 
 
 def _log_namer(filepath: str) -> str:
-    """로테이션된 로그 파일명을 _YYYYMMDD.log 형식으로 변환합니다.
+    """로테이션된 로그 파일명을 .log_YYYYMMDD 형식으로 변환합니다.
 
-    Loguru 기본 백업 형식: app.log.2026-02-06_00-00-00_000000
-    변환 결과: app_20260206.log
+    Loguru 기본 백업 형식: app.2026-02-06_00-00-00_000000.log
+    변환 결과: app.log_20260206
     """
-    match = re.search(r"\.(\d{4})-(\d{2})-(\d{2})_\d{2}-\d{2}-\d{2}_\d+$", filepath)
+    path = Path(filepath)
+    match = re.match(
+        r"^(?P<prefix>.+?)\.(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})_"
+        r"\d{2}-\d{2}-\d{2}_\d+(?P<suffix>\.[^.]+)?$",
+        path.name,
+    )
     if not match:
         return filepath
-    year, month, day = match.group(1), match.group(2), match.group(3)
-    base = filepath[: match.start()]
-    stem = Path(base).stem
-    ext = Path(base).suffix
-    parent = str(Path(base).parent)
-    return str(Path(parent) / f"{stem}_{year}{month}{day}{ext}")
+
+    suffix = match.group("suffix") or ""
+    base_name = match.group("prefix")
+    if suffix and not base_name.endswith(suffix):
+        base_name = f"{base_name}{suffix}"
+
+    compact_date = f"{match.group('year')}{match.group('month')}{match.group('day')}"
+    return str(path.with_name(f"{base_name}_{compact_date}"))
 
 
 def _parse_retention_days(retention: str) -> int:
@@ -87,43 +94,51 @@ def _parse_retention_days(retention: str) -> int:
 
 
 def _make_retention_handler(retention: str, log_file: Path) -> Callable[[list[str]], None]:
-    """_YYYYMMDD.log 이름변경 + 보관기간 관리를 수행하는 retention 핸들러를 생성합니다.
+    """.log_YYYYMMDD 이름변경 + 보관기간 관리를 수행하는 retention 핸들러를 생성합니다.
 
     Loguru의 retention 콜백으로 사용됩니다. 로테이션 시:
-    1. Loguru 기본 형식(app.log.YYYY-MM-DD_...)을 app_YYYYMMDD.log로 이름변경
+    1. Loguru 기본 형식(app.YYYY-MM-DD_...log)을 app.log_YYYYMMDD로 이름변경
     2. 이전에 이름변경된 파일 포함, 보관기간 초과 파일 삭제
     """
     max_age_days = _parse_retention_days(retention)
-    stem = log_file.stem
-    ext = log_file.suffix
+    log_name = log_file.name
+    legacy_stem = log_file.stem
+    legacy_ext = log_file.suffix
     log_dir = log_file.parent
 
     def handler(logs: list[str]) -> None:
         now = datetime.now()
         cutoff = now - timedelta(days=max_age_days)
 
-        # 1. Loguru 기본 형식 파일을 _YYYYMMDD.log로 이름변경
+        # 1. Loguru 기본 형식 파일을 .log_YYYYMMDD로 이름변경
         for log_path in logs:
-            match = re.search(r"\.(\d{4})-(\d{2})-(\d{2})_\d{2}-\d{2}-\d{2}_\d+$", log_path)
-            if match:
-                new_path = _log_namer(log_path)
+            new_path = _log_namer(log_path)
+            if new_path != log_path:
                 if os.path.exists(new_path):
                     os.remove(log_path)
                 else:
                     os.rename(log_path, new_path)
 
-        # 2. 이름변경된 파일(_YYYYMMDD.log) 중 보관기간 초과 파일 삭제
-        pattern = re.compile(rf"^{re.escape(stem)}_(\d{{8}}){re.escape(ext)}$")
+        # 2. 이름변경된 파일(.log_YYYYMMDD) 중 보관기간 초과 파일 삭제
+        backup_patterns = [
+            re.compile(rf"^{re.escape(log_name)}_(\d{{8}})$"),
+            re.compile(rf"^{re.escape(legacy_stem)}_(\d{{8}}){re.escape(legacy_ext)}$"),
+        ]
         if log_dir.exists():
             for f in log_dir.iterdir():
-                m = pattern.match(f.name)
-                if m:
-                    try:
-                        file_date = datetime.strptime(m.group(1), "%Y%m%d")
-                        if file_date < cutoff:
-                            f.unlink(missing_ok=True)
-                    except ValueError:
-                        continue
+                match = None
+                for pattern in backup_patterns:
+                    match = pattern.match(f.name)
+                    if match:
+                        break
+                if not match:
+                    continue
+                try:
+                    file_date = datetime.strptime(match.group(1), "%Y%m%d")
+                    if file_date < cutoff:
+                        f.unlink(missing_ok=True)
+                except ValueError:
+                    continue
 
     return handler
 
@@ -194,7 +209,7 @@ def setup_logger(
 
     기본 핸들러를 제거하고 콘솔 및 파일 핸들러를 추가합니다.
     콘솔 출력은 색상이 적용되며, 파일 로깅은 자동 로테이션을 지원합니다.
-    로테이션 시 백업 파일은 {stem}_YYYYMMDD{ext} 형식으로 저장됩니다.
+    로테이션 시 백업 파일은 {filename}_YYYYMMDD 형식으로 저장됩니다.
 
     Args:
         level: 로그 레벨 (DEBUG, INFO, WARNING, ERROR, CRITICAL)

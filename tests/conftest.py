@@ -33,7 +33,6 @@ def mock_telegram() -> MagicMock:
     """Mock Telegram notifier."""
     mock = MagicMock()
     mock.send_message = AsyncMock()
-    mock.send_error = AsyncMock()
     return mock
 
 

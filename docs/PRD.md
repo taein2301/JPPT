@@ -243,7 +243,6 @@ async def shutdown():
 
 #### 4.6.1 Telegram
 - 메시지 전송 (텍스트, 마크다운)
-- 에러 알림 전송
 - 비활성화 가능 (`telegram.enabled: false`)
 - 인터랙티브 설정: `create_app.sh` 실행 시 Bot Token 입력 및 Chat ID 자동 조회
 - 설정 저장: `config/dev.yaml`에 직접 저장 또는 환경변수 오버라이드
